@@ -232,7 +232,6 @@ def set_wk_dir():
     message_to_console('...project directory confirmed.', force=True);
     return;
 
-
 def get_structure_yamls(path: str, rescursive: bool) -> Tuple[bool, List[Tuple[str, Dict[str, Any]]]]:
     global FILE_NAME_PPTSTRUCT;
     global FILE_NAME_PPTIGNORE;
@@ -275,7 +274,6 @@ def get_structure_yamls(path: str, rescursive: bool) -> Tuple[bool, List[Tuple[s
         if force_ignore:
             return True, [];
         return True, [(path, struct)];
-
 
 def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
     # create files:
@@ -336,7 +334,6 @@ def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
             write_lines(lines, file_runscript);
     return;
 
-
 def create_stamp(struct: dict) -> List[str]:
     lines = [];
     border = r'%% ' + '*'*80;
@@ -358,7 +355,6 @@ def create_stamp(struct: dict) -> List[str]:
         lines = [border] + lines + [border];
 
     return lines;
-
 
 def create_startscript(
     root: str,
@@ -415,7 +411,6 @@ def create_startscript(
     lines.append(' '.join(command) + ';');
 
     return lines;
-
 
 def create_folders(dir_name: str, struct: dict, path: str):
     subpath = os.path.join(path, dir_name);
