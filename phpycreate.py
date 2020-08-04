@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
 ##############################################################################
 # FILE: (PH(p)y)create
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
@@ -26,9 +25,11 @@
 ##############################################################################
 
 import sys;
+sys.tracebacklimit = 0; ## disables traceback.
 import os;
 import re;
-import yaml;
+from yaml import load;
+from yaml import FullLoader;
 from typing import Any;
 from typing import Dict;
 from typing import List;
@@ -39,8 +40,8 @@ from gitignore_parser import parse_gitignore;
 
 console_quiet = False;
 PHPYCREATE_VERSION = '1·0·0';
-FILE_NAME_PPTSTRUCT = 'phpycreate.yml';
-FILE_NAME_PPTIGNORE = 'phpycreate.ignore';
+FILE_NAME_PPTSTRUCT = '.phpycreate.yml';
+FILE_NAME_PPTIGNORE = '.phpycreate.ignore';
 
 # --------------------------------------------------------------------------------
 # PRIMARY METHOD
@@ -65,6 +66,11 @@ def main():
         display_help();
         return;
 
+    message_to_console('');
+    message_to_console('----------------------');
+    message_to_console('|   \033[32;1m(PH(p)y)create\033[0m   |');
+    message_to_console('----------------------');
+
     path_current = os.getcwd();
     try:
         if not accept_current_directory:
@@ -75,7 +81,8 @@ def main():
         if not success:
             raise FileExistsError('Could not find \'{}\' file in the project directory!'.format(FILE_NAME_PPTSTRUCT));
 
-        message_to_console('\nGenerating project structure...');
+        message_to_console('');
+        message_to_console('Generating project structure...');
         for path, struct in obj:
             crunch_structure_yaml(path, struct, path == path_wd);
         message_to_console('...project structure created.');
@@ -85,6 +92,7 @@ def main():
     finally:
         os.chdir(path_current);
 
+    message_to_console('');
     return;
 
 # --------------------------------------------------------------------------------
@@ -114,50 +122,52 @@ def display_help():
         '''      |''',
         '''      ·''',
         '''      ·''',
-        '''      |____ phpycreate.yml''',
-        '''      |____ phpycreate.ignore\033[0m''',
+        '''      |____ .phpycreate.yml''',
+        '''      |____ .phpycreate.ignore\033[0m''',
         '''''',
         '''In \033[1mphpycreate.yml\033[0m you may add for example the following parts:''',
         '''''',
         '''    -------- example of ./\033[1mphpycreate.yml\033[0m ----''',
-        '''    | \033[95mignore:\033[93m backwards \033[32m# alternative - true, false (default if empty)\033[0m''',
-        '''    | \033[95mstamp\033[0m:\033[93m\033[0m''',
-        '''    |   \033[95mfile\033[0m:\033[93m stamp.tex\033[0m''',
-        '''    |   \033[95moverwrite\033[0m:\033[93m true\033[0m''',
-        '''    |   \033[95moptions\033[0m:\033[93m\033[0m''',
-        '''    |     \033[95mauthor\033[0m:\033[93m <author> or [<list of authors>]\033[0m''',
-        '''    |     \033[95mcreated\033[0m:\033[93m <date as string>\033[0m''',
-        '''    |     \033[95mtitle\033[0m:\033[93m <title of document>\033[0m''',
+        '''    | \033[94mignore: \033[93mbackwards \033[32m# alternative - true, false (default if empty)\033[0m''',
+        '''    | \033[94mstamp\033[0m:\033[93m\033[0m''',
+        '''    |   \033[94mfile\033[0m: \033[93mstamp.tex\033[0m''',
+        '''    |   \033[94moverwrite\033[0m: \033[93mtrue\033[0m''',
+        '''    |   \033[94moptions\033[0m:\033[93m\033[0m''',
+        '''    |     \033[94mauthor\033[0m: \033[93m<author> or [<list of authors>]\033[0m''',
+        '''    |     \033[94mcreated\033[0m: \033[93m<date as string>\033[0m''',
+        '''    |     \033[94mtitle\033[0m: \033[93m<title of document>\033[0m''',
         '''    |     \033[32m#... these attributes can be arbitrarily chosen, but are limited to a single level.\033[0m''',
-        '''    | \033[95mcompile\033[0m:\033[93m \033[32m# will only be parsed if .yml file is at the root level\033[0m''',
-        '''    |   \033[95mfile\033[0m:\033[93m start.sh\033[0m''',
-        '''    |   \033[95moverwrite\033[0m:\033[93m true\033[0m''',
-        '''    |   \033[95moptions\033[0m:\033[93m\033[0m''',
-        '''    |     \033[95mroot\033[0m:\033[93m root.tex\033[0m''',
-        '''    |     \033[95moutput\033[0m:\033[93m main.tex\033[0m''',
-        '''    |     \033[95mseed\033[0m:\033[93m <some seed for random number generation>\033[0m''',
-        '''    |     \033[95minsert-bib\033[0m:\033[93m true\033[0m''',
-        '''    |     \033[95mremove-latex-comments\033[0m:\033[93m false\033[0m''',
-        '''    |     \033[95mshow-structure\033[0m:\033[93m true\033[0m''',
-        '''    |     \033[95mtabs\033[0m:\033[93m false\033[0m''',
-        '''    |     \033[95mspaces\033[0m:\033[93m 4\033[0m''',
-        '''    | \033[95mfiles\033[0m:\033[93m\033[0m''',
-        '''    | \033[95mcomponents\033[0m:\033[93m\033[0m''',
-        '''    |   \033[95msrc\033[0m:\033[93m\033[0m''',
-        '''    |   \033[95mimg\033[0m:\033[93m\033[0m''',
-        '''    |     \033[95madd-index\033[0m:\033[93m false \033[32m# by default in each created folder an 'index.tex' file is created, unless this is set.\033[0m''',
-        '''    |   \033[95mfront\033[0m:\033[93m\033[0m''',
-        '''    |   \033[95mbody\033[0m:\033[93m\033[0m''',
-        '''    |     \033[95mintroduction\033[0m:\033[93m\033[0m''',
-        '''    |     \033[95mliterature-review\033[0m:\033[93m\033[0m''',
-        '''    |         \033[95mname\033[0m:\033[93m lit-review \033[32m# by default the key is used, unless a 'name:' attrbute is given.\033[0m''',
-        '''    |         \033[95mcomponents\033[0m:\033[93m \033[32m# you can nest under 'components' as much as you like.\033[0m''',
-        '''    |           \033[95mclassical-results:\033[0m:\033[93m\033[0m''',
-        '''    |           \033[95mnon-classical-results\033[0m:\033[93m\033[0m''',
-        '''    |     \033[95manalysis\033[0m:\033[93m\033[0m''',
-        '''    |   \033[95mback\033[0m:\033[93m\033[0m''',
-        '''    |   \033[95mappendix\033[0m:\033[93m\033[0m''',
-        '''    |     \033[95mfiles\033[0m:\033[93m [references.bib]\033[0m''',
+        '''    | \033[94mcompile\033[0m: \033[93m\033[32m# will only be parsed if .yml file is at the root level\033[0m''',
+        '''    |   \033[94mfile\033[0m: \033[93mstart.sh\033[0m''',
+        '''    |   \033[94moverwrite\033[0m: \033[93mtrue\033[0m''',
+        '''    |   \033[94moptions\033[0m:\033[93m\033[0m''',
+        '''    |     \033[94minput\033[0m: \033[93mroot.tex\033[0m''',
+        '''    |     \033[94moutput\033[0m: \033[93mmain.tex\033[0m''',
+        '''    |     \033[94mdebug\033[0m: \033[93mfalse\033[0m''',
+        '''    |     \033[94mcompile-latex\033[0m: \033[93mTRUE\033[0m''',
+        '''    |     \033[94minsert-bib\033[0m: \033[93mtrue\033[0m''',
+        '''    |     \033[94mcomments\033[0m: \033[93mauto\033[0m \033[32m# alternative - true, false\033[0m''',
+        '''    |     \033[94mshow-structure\033[0m: \033[93mtrue\033[0m''',
+        '''    |     \033[94mtabs\033[0m: \033[93mfalse\033[0m''',
+        '''    |     \033[94mspaces\033[0m: \033[93m4\033[0m''',
+        '''    |     \033[94mseed\033[0m: \033[93m<some seed for random number generation>\033[0m''',
+        '''    | \033[94mfiles\033[0m: \033[93m[root.tex]\033[0m''',
+        '''    | \033[94mfolders\033[0m:\033[93m\033[0m''',
+        '''    |   \033[94msrc\033[0m:\033[93m\033[0m''',
+        '''    |   \033[94mimg\033[0m:\033[93m\033[0m''',
+        '''    |   \033[94mfront\033[0m:\033[93m\033[0m''',
+        '''    |   \033[94mbody\033[0m:\033[93m\033[0m''',
+        '''    |     \033[94mfolders\033[0m:\033[93m\033[0m''',
+        '''    |       \033[94mintroduction\033[0m:\033[93m\033[0m''',
+        '''    |       \033[94mliterature-review\033[0m:\033[93m\033[0m''',
+        '''    |           \033[94mname\033[0m: \033[93mlit-review \033[32m# by default the key is used, unless a 'name:' attrbute is given.\033[0m''',
+        '''    |           \033[94mfolders\033[0m: \033[93m\033[32m# you can nest under 'folders' as much as you like.\033[0m''',
+        '''    |             \033[94mclassical-results:\033[0m:\033[93m\033[0m''',
+        '''    |             \033[94mnon-classical-results\033[0m:\033[93m\033[0m''',
+        '''    |       \033[94manalysis\033[0m:\033[93m\033[0m''',
+        '''    |   \033[94mback\033[0m:\033[93m\033[0m''',
+        '''    |   \033[94mappendix\033[0m:\033[93m\033[0m''',
+        '''    |     \033[94mfiles\033[0m: \033[93m[references.bib]\033[0m''',
         '''    -------- end of example file ------------''',
         '''''',
         '''Now, in bash in your project folder simply call''',
@@ -210,10 +220,10 @@ def set_wk_dir():
         while True:
             confirm = input('  Is this correct? y/n\n    > ');
             # accept empty response (enter key) as yes:
-            if re.match(r'^(?:|y|yes|j|ja)$', confirm, re.IGNORECASE):
+            if re.match(r'^(?:|1|y|yes|j|ja)$', confirm, re.IGNORECASE):
                 answer = True;
                 break;
-            elif re.match(r'^(?:n|no|nein)$', confirm, re.IGNORECASE):
+            elif re.match(r'^(?:0|n|no|nein)$', confirm, re.IGNORECASE):
                 answer = False;
                 break;
         if answer:
@@ -246,14 +256,14 @@ def get_structure_yamls(path: str, rescursive: bool) -> Tuple[bool, List[Tuple[s
                 continue;
             if fname in files:
                 # extract instruction for structure from yml file:
+                fname_full = fname;
                 try:
-                    fname_abs = os.path.join(subpath, fname);
-                    fp = open(fname_abs, 'r');
-                    struct = yaml.load(fp, Loader=yaml.FullLoader);
-                    fp.close();
+                    fname_full = os.path.join(subpath, fname);
+                    with open(fname_full, 'r') as fp:
+                        struct = load(fp, Loader=FullLoader);
                 except:
-                    struct = {};
-                force_ignore = get_dict_value(struct, 'ignore', default=False);
+                    raise FileExistsError('Could not open file `{}`.'.format(fname_full));
+                force_ignore = get_dict_value(struct, 'ignore', typ=bool, default=False);
                 if force_ignore == True or (not subpath == path and force_ignore == 'backwards'):
                     continue;
                 structures.append((subpath, struct));
@@ -263,32 +273,32 @@ def get_structure_yamls(path: str, rescursive: bool) -> Tuple[bool, List[Tuple[s
         return True, structures;
     else:
         # extract instruction for structure from yml file:
+        fname_full = fname;
         try:
-            fname_abs = os.path.join(path, fname);
-            fp = open(fname_abs, 'r');
-            struct = yaml.load(fp, Loader=yaml.FullLoader);
-            fp.close();
+            fname_full = os.path.join(path, fname);
+            with open(fname_full, 'r') as fp:
+                struct = load(fp, Loader=FullLoader);
         except:
-            struct = {};
-        force_ignore = get_dict_value(struct, 'ignore', default=False);
+            raise FileExistsError('Could not open file `{}`.'.format(fname_full));
+        force_ignore = get_dict_value(struct, 'ignore', typ=bool, default=False);
         if force_ignore:
             return True, [];
         return True, [(path, struct)];
 
 def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
     # create files:
-    files = get_dict_value(struct, 'files') or {};
+    files = get_dict_value(struct, 'files', typ=[list, dict], default=[]);
     for _, fname, _ in get_names(files):
         make_file_if_not_exists(fname, path);
 
     # create folders recursively:
-    folders = get_dict_value(struct, 'components') or {};
+    folders = get_dict_value(struct, ['folders', 'components'], typ=dict, default={});
     for _, dir_name, struct_ in get_names(folders):
         make_dir_if_not_exists(dir_name, path);
         create_folders(dir_name, struct_ or {}, path=path);
 
     # if the instructions exist, create and fill the stamp file:
-    file_stamp = get_dict_value(struct, 'stamp', 'file');
+    file_stamp = get_dict_value(struct, 'stamp', 'file', typ=str, default=None);
     if isinstance(file_stamp, str):
         fexists = make_file_if_not_exists(file_stamp, path);
         overwrite = get_dict_value(struct, 'stamp', 'overwrite', default=False);
@@ -299,39 +309,35 @@ def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
     if not is_root:
         return;
 
-    # ONLY if at root level: create root and output files, compile script:
-    # create root file
-    file_root = get_dict_value(struct, 'compile', 'root') or 'root.tex';
-    make_file_if_not_exists(file_root, path);
-
-    # create output file
-    file_output = get_dict_value(struct, 'compile', 'options', 'output');
-    if isinstance(file_output, str):
-        make_file_if_not_exists(file_output, path);
-
-    # if provided, create and fill start script:
-    options = get_dict_value(struct, 'compile', 'options', default={});
-    file_runscript = get_dict_value(struct, 'compile', 'file');
-    file_output = get_dict_value(options, 'output');
+    # ONLY if at root level: create and fill compile-script:
+    options = get_dict_value(struct, 'compile', 'options', default=None);
+    file_runscript = get_dict_value(struct, 'compile', 'file', typ=str, default=None);
+    to_stdout = get_dict_value(struct, 'compile', 'stdout', typ=bool, default=False);
+    file_input = get_dict_value(options, ['input', 'root'], typ=str, default=None);
+    file_output = get_dict_value(options, 'output', typ=str, default=None);
     overwrite = get_dict_value(struct, 'compile', 'overwrite', default=False);
-    if isinstance(file_runscript, str) and isinstance(file_output, str):
-        fexists = make_file_if_not_exists(file_runscript, path);
-        if not fexists or overwrite:
-            lines = create_startscript(
-                root=file_root,
-                stamp=file_stamp,
-                output=file_output,
-                show_python=get_dict_value(options, 'show-python', default=False),
-                compile_latex=get_dict_value(options, 'compile-latex', default=True),
-                insert_bib=get_dict_value(options, 'insert-bib', default=False),
-                latex_comments=get_dict_value(options, 'remove-latex-comments', default='auto'),
-                silent=not get_dict_value(options, 'show-structure', default=True),
-                seed=get_dict_value(options, 'seed'),
-                tabs=get_dict_value(options, 'tabs', default=False),
-                spaces=get_dict_value(options, 'spaces', default=4),
-                max_length=get_dict_value(options, 'maxlength', default=10000),
-            );
-            write_lines(lines, file_runscript);
+    if (to_stdout or isinstance(file_runscript, str)) and isinstance(file_input, str) and isinstance(file_output, str):
+        command = create_startscript(
+            input          = file_input,
+            stamp          = file_stamp,
+            output         = file_output,
+            show_python    = get_dict_value(options, ['debug', 'show-python'],        typ=bool, default=False),
+            compile_latex  = get_dict_value(options, ['latex', 'compile-latex'],      typ=bool, default=True),
+            insert_bib     = get_dict_value(options, ['insert-bib'],                  typ=bool, default=False),
+            latex_comments = get_dict_value(options, ['latex-comments', 'comments'],  typ=[True, False, 'auto'], default='auto'),
+            silent         = not
+                             get_dict_value(options, ['show-tree', 'show-structure'], typ=bool, default=True),
+            seed           = get_dict_value(options, ['seed'],                        typ=int, default=None),
+            tabs           = get_dict_value(options, ['tabs'],                        typ=bool, default=False),
+            spaces         = get_dict_value(options, ['spaces'],                      typ=int, default=4),
+            max_length     = get_dict_value(options, ['max-length', 'maxlength'],     typ=int, default=10000),
+        );
+        if isinstance(file_runscript, str):
+            fexists = make_file_if_not_exists(file_runscript, path);
+            if not fexists or overwrite:
+                write_lines([r'#! /bin/bash', '', command +';', ''], file_runscript);
+        if to_stdout:
+            print(command);
     return;
 
 def create_stamp(struct: dict) -> List[str]:
@@ -357,7 +363,7 @@ def create_stamp(struct: dict) -> List[str]:
     return lines;
 
 def create_startscript(
-    root: str,
+    input: str,
     stamp: Union[str, None],
     output: str,
     show_python: bool,
@@ -369,14 +375,10 @@ def create_startscript(
     tabs: bool,
     spaces: int,
     max_length: int
-) -> List[str]:
-    lines = [];
-    lines.append(r'#! /bin/bash');
-    lines.append('');
-
+) -> str:
     # CREATE PHPYTEX COMMAND:
     command = ['phpytex'];
-    command += ['-i', root];
+    command += ['-i', input];
     # add stamp file?
     if isinstance(stamp, str):
         command += ['-head', stamp];
@@ -408,18 +410,10 @@ def create_startscript(
         command += ['-tabs'];
     else:
         command += ['-spaces', str(spaces)];
-    lines.append(' '.join(command) + ';');
-
-    return lines;
+    return ' '.join(command);
 
 def create_folders(dir_name: str, struct: dict, path: str):
     subpath = os.path.join(path, dir_name);
-
-    # potentially add an index file:
-    add_index = get_dict_value(struct, 'add-index', default=True);
-    if add_index:
-        fname = 'index.tex';
-        make_file_if_not_exists(fname, subpath);
 
     # add any files demanded:
     files = get_dict_value(struct, 'files', default={});
@@ -427,7 +421,7 @@ def create_folders(dir_name: str, struct: dict, path: str):
         make_file_if_not_exists(fname, subpath);
 
     # add any subfolders demanded:
-    folders = get_dict_value(struct, 'components', default={});
+    folders = get_dict_value(struct, 'folders', default={});
     for _, dir_name_, struct_ in get_names(folders):
         make_dir_if_not_exists(dir_name_, subpath);
         create_folders(dir_name_, struct_ or {}, subpath);
@@ -454,7 +448,7 @@ def parse_cli_args(args):
 
 # extracts name of attribute --- either the key itself, or the 'name' attribute, if defined.
 def get_name(key: str, struct: Union[dict, None]) -> str:
-    return get_dict_value(struct or {}, 'name', default=key);
+    return get_dict_value(struct, ['name'], typ=str, default=key);
 
 def get_names(struct: Union[dict, List[str]]) -> List[Tuple[str, str, Any]]:
     if isinstance(struct, list):
@@ -488,9 +482,34 @@ def write_lines(lines: List[str], fname: str, path: str = None):
         pass;
     return;
 
-def get_dict_value(obj: dict, key: str, *keys: str, default=None):
-    obj_ = obj[key] if isinstance(obj, dict) and key in obj else default;
-    return obj_ if len(keys) == 0 else get_dict_value(obj_, *keys);
+def matchestype(o, t: Union[type, str, bool, int, float, None, list]):
+    if t is None:
+        return True;
+    elif isinstance(t, type):
+        return type(o) == t;
+    elif isinstance(t, (str, bool, int, float)):
+        return o == t;
+    else:
+        return True in [matchestype(o, tt) for tt in t];
+
+def get_dict_value(obj, key: Union[str,List[str]], *keys: Union[str,List[str]], typ=None, default=None):
+    if not isinstance(obj, dict):
+        return default;
+    if not isinstance(key, list):
+        key = [key];
+    key_ = None;
+    for _ in key:
+        if _ in obj:
+            key_ = _;
+            break;
+    if key_ is None:
+        return default;
+    obj_ = obj[key_];
+    if len(keys) > 0:
+        return get_dict_value(obj_, *keys, typ=typ, default=default);
+    if obj_ is None or not matchestype(obj_, typ):
+        return default;
+    return obj_;
 
 def message_to_console(message: str, force=False):
     global console_quiet;

@@ -152,12 +152,12 @@ class ____phpytexcompiler:
 			n = int(params['spaces']);
 			self.INDENTCHARACTER = ' '*n;
 			self.INDENTCHARACTER_re = ' '*n;
-		
+
 		if params['insert-bib']:
 			self.INSERTBIB = True;
 
 		print('----------------------');
-		print('| (PH(p)y)TeX OUTPUT |');
+		print('|    \033[32;1m(PH(p)y)TeX\033[0m    |');
 		print('----------------------');
 		print('\nDokumentteile werden kombiniert...\n');
 
@@ -627,7 +627,7 @@ class ____phpytexcompiler:
 			erfolg = self.____knit(filecontents=preamble, verbatim=verbatim, struct=[], mute=True, filename={'src':self.STAMPDATEI, 'main':None}, params=params, dateityp='head');
 			if not self.ERROR:
 				self.____addpytexline(lines=preamble, verbatim=verbatim, expr=[''], mode='meta');
-		
+
 		if not erfolg:
 			return lines, False;
 
