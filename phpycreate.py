@@ -6,7 +6,7 @@
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
 # LAST CHANGED: 27.07.2020
-# VERSION: 1·0·0
+# VERSION: 1·0·1
 # NOTES:
 #
 #     Installation:
@@ -39,16 +39,16 @@ from subprocess import Popen;
 from gitignore_parser import parse_gitignore;
 
 console_quiet = False;
-PHPYCREATE_VERSION = '1·0·0';
-FILE_NAME_PPTSTRUCT = '.phpycreate.yml';
-FILE_NAME_PPTIGNORE = '.phpycreate.ignore';
+PHPYCREATE_VERSION = '1·0·1';
+FILE_EXT_PPTSTRUCT = r'\.phpycreate\.(yml|yaml)';
+FILE_EXT_PPTIGNORE = r'\.phpycreate\.ignore';
 
 # --------------------------------------------------------------------------------
 # PRIMARY METHOD
 # --------------------------------------------------------------------------------
 
 def main():
-    global FILE_NAME_PPTSTRUCT;
+    global FILE_EXT_PPTSTRUCT;
     global console_quiet;
 
     tokens, _ = parse_cli_args(sys.argv[1:]);
@@ -79,7 +79,7 @@ def main():
         path_wd = os.getcwd();
         success, obj = get_structure_yamls(path_wd, recursive_creation);
         if not success:
-            raise FileExistsError('Could not find \'{}\' file in the project directory!'.format(FILE_NAME_PPTSTRUCT));
+            raise FileExistsError('Could not find \'{}\' file in the project directory!'.format(FILE_EXT_PPTSTRUCT));
 
         message_to_console('');
         message_to_console('Generating project structure...');
@@ -242,48 +242,50 @@ def set_wk_dir():
     message_to_console('...project directory confirmed.', force=True);
     return;
 
-def get_structure_yamls(path: str, rescursive: bool) -> Tuple[bool, List[Tuple[str, Dict[str, Any]]]]:
-    global FILE_NAME_PPTSTRUCT;
-    global FILE_NAME_PPTIGNORE;
+def get_structure_yamls(path: str, recursive: bool) -> Tuple[bool, List[Tuple[str, Dict[str, Any]]]]:
+    global FILE_EXT_PPTSTRUCT;
+    global FILE_EXT_PPTIGNORE;
 
-    fname = FILE_NAME_PPTSTRUCT;
-    fname_ignore = FILE_NAME_PPTIGNORE;
-    match_ignore = parse_gitignore(fname_ignore, base_dir=path);
-    if rescursive:
-        structures = [];
-        for subpath, _, files in os.walk(path):
-            if match_ignore(subpath):
+    pattern_create = FILE_EXT_PPTSTRUCT;
+    regex_create = re.compile(pattern_create);
+    pattern_ignore = FILE_EXT_PPTIGNORE;
+    regex_ignore = re.compile(pattern_ignore);
+
+    match_ignore = None;
+    # extract ignore file (if one exists)
+    for fname in os.listdir(path):
+        if regex_ignore.match(fname):
+            match_ignore = parse_gitignore(fname, base_dir=path);
+            break;
+
+    structures = [];
+    for subpath, _, files in os.walk(path):
+        if not recursive and not (subpath == path):
+            continue;
+        if not(match_ignore is None) and match_ignore(subpath):
+            continue;
+        files = [fname for fname in files if regex_create.match(fname)];
+        if len(files) == 0:
+            if subpath == path:
+                raise FileNotFoundError('No file matching the pattern \'{}\' could be found in the project directory!'.format(pattern_create));
+        else:
+            fname = files[0];
+            # extract instruction for structure from yml file:
+            fname_full = fname;
+            try:
+                fname_full = os.path.join(subpath, fname);
+                with open(fname_full, 'r') as fp:
+                    struct = load(fp, Loader=FullLoader);
+            except:
+                raise FileExistsError('Could not open file `{}`.'.format(fname_full));
+            force_ignore = get_dict_value(struct, 'ignore', typ=bool, default=False);
+            if force_ignore == True or (not subpath == path and force_ignore == 'backwards'):
                 continue;
-            if fname in files:
-                # extract instruction for structure from yml file:
-                fname_full = fname;
-                try:
-                    fname_full = os.path.join(subpath, fname);
-                    with open(fname_full, 'r') as fp:
-                        struct = load(fp, Loader=FullLoader);
-                except:
-                    raise FileExistsError('Could not open file `{}`.'.format(fname_full));
-                force_ignore = get_dict_value(struct, 'ignore', typ=bool, default=False);
-                if force_ignore == True or (not subpath == path and force_ignore == 'backwards'):
-                    continue;
-                structures.append((subpath, struct));
-            elif subpath == path:
-                message_to_console('Error! File \'{}\' could not be found in project directory!'.format(fname));
-                return False, [];
-        return True, structures;
-    else:
-        # extract instruction for structure from yml file:
-        fname_full = fname;
-        try:
-            fname_full = os.path.join(path, fname);
-            with open(fname_full, 'r') as fp:
-                struct = load(fp, Loader=FullLoader);
-        except:
-            raise FileExistsError('Could not open file `{}`.'.format(fname_full));
-        force_ignore = get_dict_value(struct, 'ignore', typ=bool, default=False);
-        if force_ignore:
-            return True, [];
-        return True, [(path, struct)];
+            structures.append((subpath, struct));
+        if not recursive and (subpath == path):
+            break;
+
+    return True, structures;
 
 def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
     # create files:
