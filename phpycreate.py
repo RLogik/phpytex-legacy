@@ -471,7 +471,7 @@ def make_dir_if_not_exists(dir_name: str, path: str = None) -> bool:
     path = path or os.getcwd();
     fexists = os.path.isdir(os.path.join(path, dir_name));
     if fexists:
-        message_to_console('  \033[33mSkipping creation of folder\033[0m {} ⟶ already exists!'.format(dir_name));
+        message_to_console('  \033[33mSkipping creation of folder\033[0m \033[96;1m{}\033[0m ⟶ already exists!'.format(dir_name));
     else:
         message_to_console('  Folder \033[96;1m{}\033[0m will be created.'.format(dir_name));
         Popen(['mkdir', '-p', dir_name], cwd=path).wait();
