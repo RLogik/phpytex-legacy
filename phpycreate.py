@@ -460,7 +460,9 @@ def get_names(struct: Union[dict, List[str]]) -> List[Tuple[str, str, Any]]:
 def make_file_if_not_exists(fname: str, path: str = None) -> bool:
     path = path or os.getcwd();
     fexists = os.path.isfile(os.path.join(path, fname));
-    if not fexists:
+    if fexists:
+        message_to_console('  \033m[33mSkipping creation of file\033[0m {} ⟶ already exists!'.format(fname));
+    else:
         message_to_console('  File {} will be created.'.format(fname));
         Popen(['touch', fname], cwd=path).wait();
     return fexists;
@@ -468,7 +470,9 @@ def make_file_if_not_exists(fname: str, path: str = None) -> bool:
 def make_dir_if_not_exists(dir_name: str, path: str = None) -> bool:
     path = path or os.getcwd();
     fexists = os.path.isdir(os.path.join(path, dir_name));
-    if not fexists:
+    if fexists:
+        message_to_console('  \033m[33mSkipping creation of folder\033[0m {} ⟶ already exists!'.format(dir_name));
+    else:
         message_to_console('  Folder {} will be created.'.format(dir_name));
         Popen(['mkdir', '-p', dir_name], cwd=path).wait();
     return fexists;
