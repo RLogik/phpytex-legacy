@@ -2,29 +2,29 @@
 # -*- coding: utf-8 -*-
 
 #############################################################################
-# ENTITÄT: (PH(p)y)TeX														#
-# AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex			#
-# ERSTELLUNGSDATUM: 27.11.2018												#
-# ZULETZT VERÄNDERT: 30.05.2019												#
-# VERSION: 3·1·5															#
-# HINWEISE:																	#
-#																			#
-#	Installation:															#
-# 	~~~~~~~~~~~~~															#
-# 	1. Evtl. die ersten 2 Zeilen dieser Dateie an deinem System anpassen.	#
-# 	2. In einen Ordner legen, der im PATH liegt.							#
-# 	3. Die .py-Extension entfernen											#
-# 	4. Mac OSX / Linux:														#
-# 	sudo chmod 755 phpytex													#
-# 	in Terminal ausführen.													#
-# 	(Oder den äquivalenten Befehl für Windows.)								#
-# 	5. Befehl ist jetzt überall verfügbar.									#
-# 	6. Mit																	#
-# 		phpytex -help														#
-# 		phpytex -man														#
-# 	die Anleitungen aufrufen.												#
-#	oder https://github.com/RLogik/phpytex >> README.md konsultieren.		#
-#																			#
+# ENTITÄT: (PH(p)y)TeX                                                      #
+# AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
+# ERSTELLUNGSDATUM: 27.11.2018                                              #
+# ZULETZT VERÄNDERT: 30.05.2019                                             #
+# VERSION: 3·1·5                                                            #
+# HINWEISE:                                                                 #
+#                                                                           #
+#    Installation:                                                          #
+#    ~~~~~~~~~~~~~                                                          #
+#    1. Evtl. die ersten 2 Zeilen dieser Dateie an deinem System anpassen.  #
+#    2. In einen Ordner legen, der im PATH liegt.                           #
+#    3. Die .py-Extension entfernen                                         #
+#    4. Mac OSX / Linux:                                                    #
+#    sudo chmod 755 phpytex                                                 #
+#    in Terminal ausführen.                                                 #
+#    (Oder den äquivalenten Befehl für Windows.)                            #
+#    5. Befehl ist jetzt überall verfügbar.                                 #
+#    6. Mit                                                                 #
+#        phpytex -help                                                      #
+#        phpytex -man                                                       #
+#    die Anleitungen aufrufen.                                              #
+#    oder https://github.com/RLogik/phpytex >> README.md konsultieren.      #
+#                                                                           #
 #############################################################################
 
 
