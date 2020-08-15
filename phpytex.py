@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
 #############################################################################
 # ENTITÄT: (PH(p)y)TeX														#
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex			#
@@ -32,11 +31,9 @@
 import sys;
 import os;
 import re;
-import traceback;
-import subprocess;
 import numpy;
 import numpy as np;
-
+import subprocess;
 
 class ____phpytexcompiler:
 	def __init__(self):
@@ -62,8 +59,8 @@ class ____phpytexcompiler:
 
 		## Hier kann man optional den Defaulttabcharakter bestimmen:
 		self.INDENTCODE = 1;
-		self.INDENTCHARACTER = '\t';
-		self.INDENTCHARACTER_re = r'\t';
+		self.INDENTCHARACTER = '    ';
+		self.INDENTCHARACTER_re = r'    ';
 		pass;
 
 	## HAUPTVORGANG
@@ -77,43 +74,43 @@ class ____phpytexcompiler:
 		if params['help'] or not 'i' in params or not 'o' in params:
 			print(r'''\
 
-    Zum Gebrauch dieses Befehls entweder:
+	Zum Gebrauch dieses Befehls entweder:
 
-        phpytex -help
-        phpytex --help
+		phpytex -help
+		phpytex --help
 
-    um diese Hilfe aufzurufen, oder:
+	um diese Hilfe aufzurufen, oder:
 
-        phpytex -man
-        phpytex -guide
-        phpytex -usage
+		phpytex -man
+		phpytex -guide
+		phpytex -usage
 
-    um die Gebrauchsanleitung aufzurufen, oder:
+	um die Gebrauchsanleitung aufzurufen, oder:
 
-        phpytex
-            -i DATEI              Inputdatei relativ zum aktuellen Ordner.
-            -o DATEI              Outputdatei relativ zum aktuellen Ordner.
-            ___________________
-            | optionale Flags |
-            ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-            -path PFAD            Pfad des lokalen Ordners.
-            -share PFAD           Pfad zum geteilten Ordner (PDF-Output kommt dahin).
-            -head DATEI           Datei mit Latex-Kommentar als Kopfteil.
-            -insert-bib           Inhalte von .bbl-Datei(en) werden eingesetzt anstelle von \\bibliography{...}.
+		phpytex
+			-i DATEI              Inputdatei relativ zum aktuellen Ordner.
+			-o DATEI              Outputdatei relativ zum aktuellen Ordner.
+			___________________
+			| optionale Flags |
+			¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+			-path PFAD            Pfad des lokalen Ordners.
+			-share PFAD           Pfad zum geteilten Ordner (PDF-Output kommt dahin).
+			-head DATEI           Datei mit Latex-Kommentar als Kopfteil.
+			-insert-bib           Inhalte von .bbl-Datei(en) werden eingesetzt anstelle von \\bibliography{...}.
 
-            -debug                Präkompiliertes Pythonskript wird zu Outputdatei geschrieben.
-            -no-compile           Latex-Datei wird generiert, aber nicht kompiliert.
-            -silent               Dateiaufbau in Outputdatei NICHT zeigen.
+			-debug                Präkompiliertes Pythonskript wird zu Outputdatei geschrieben.
+			-no-compile           Latex-Datei wird generiert, aber nicht kompiliert.
+			-silent               Dateiaufbau in Outputdatei NICHT zeigen.
 
-            -no-comm              Entferne sämtliche LaTex-Kommentare
-            -no-comm-auto         Entferne rauskommentierte Zeilen (% ...) aber nicht Kommentare (%%...).
-            -max-length [0-9]+    Setze maximale Länge des Dokuments auf n Zeilen: verhindert endlose schleifen.
-                                  (Defaultwert 10000.)
+			-no-comm              Entferne sämtliche LaTex-Kommentare
+			-no-comm-auto         Entferne rauskommentierte Zeilen (% ...) aber nicht Kommentare (%%...).
+			-max-length [0-9]+    Setze maximale Länge des Dokuments auf n Zeilen: verhindert endlose schleifen.
+  								(Defaultwert 10000.)
 
-            -tabs / -tab          Benutze \t als Einheit für Einrückung (Default).
-            -spaces [0-9]+        Benutze n x Leerzeichen als Einheit für Einrückung.
+			-tabs / -tab          Benutze \t als Einheit für Einrückung (Default).
+			-spaces [0-9]+        Benutze n x Leerzeichen als Einheit für Einrückung.
 
-            -seed [0-9]+          Seed für Pythons np.random.
+			-seed [0-9]+          Seed für Pythons np.random.
 
 ''');
 			return;
@@ -223,6 +220,7 @@ class ____phpytexcompiler:
 			r'''''',
 			r'''''',
 			r'''____lines____ = {'post-compile':[], 'anon':[], 'bib':{}};''',
+			r'''____indent____ = ''' + "'" + self.INDENTCHARACTER_re + "'" + ''';''',
 			r'''____filetex_name____ = "'''+fname+'''";''',
 			r'''____filetex_name_rel____ = "'''+fname_rel+'''";''',
 			r'''____filetex____ = None;''',
@@ -1092,6 +1090,9 @@ class ____phpytexcompiler:
 			if bool_belowfile:
 				self.____addpytexline(lines=filecontents, verbatim=verbatim, indent=indent['py'], expr=[''], anon=anon, mode='meta');
 			line = self.INDENTCHARACTER*indent['tex']+line;
+			# m = re.match(r'^(|.*?(?!\\).)(\%.*)$', line);
+			# if m:
+			#     line = m.group(1).rstrip();
 			self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, indent=indent['py'], expr=[line], anon=anon, mode='meta');
 			bool_belowcontent = True;
 			bool_belowfile = False;
