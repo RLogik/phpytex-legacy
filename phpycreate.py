@@ -5,8 +5,8 @@
 # FILE: (PH(p)y)create
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
-# LAST CHANGED: 14.08.2020
-# VERSION: 1·0·2
+# LAST CHANGED: 18.08.2020
+# VERSION: 1·0·3
 # NOTES:
 #
 #     Installation:
@@ -351,11 +351,17 @@ def create_stamp(struct: dict) -> List[str]:
         value = struct[key];
         tag = key.upper();
         line = r'%% ' + tag + r':';
-        if isinstance(value, list):
+        if isinstance(value, str):
+            value = re.split('\n', str(value));
+        elif isinstance(value, (int, float, bool)):
+            value = [str(value)];
+        if isinstance(value, list) and len(value) == 1:
+            line += ' '*(1 + max_tag_length - len(tag)) + str(value[0]);
+        elif isinstance(value, list) and len(value) > 1:
             indent = '\n' + r'%% ' + ' '*4;
-            line += indent.join([''] + [u for u in value if isinstance(u, str)]);
-        elif isinstance(value, (str, int, float, bool)):
-            line += ' '*(1 + max_tag_length - len(tag)) + str(value);
+            line_ = [''];
+            line_ += [u for u in value if isinstance(u, str)];
+            line += indent.join(line_);
         else:
             line += ' '*(1 + max_tag_length - len(tag)) + r'—';
         lines.append(line);
