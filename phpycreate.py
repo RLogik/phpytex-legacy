@@ -5,8 +5,8 @@
 # FILE: (PH(p)y)create
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
-# LAST CHANGED: 18.08.2020
-# VERSION: 1·0·3
+# LAST CHANGED: 10.09.2020
+# VERSION: 1·1·0
 # NOTES:
 #
 #     Installation:
@@ -300,55 +300,67 @@ def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
         create_folders(dir_name, struct_ or {}, path=path);
 
     # if the instructions exist, create and fill the stamp file:
-    file_stamp = get_dict_value(struct, 'stamp', 'file', typ=str, default=None);
-    if isinstance(file_stamp, str):
-        fexists = make_file_if_not_exists(file_stamp, path);
-        overwrite = get_dict_value(struct, 'stamp', 'overwrite', default=False);
+    fname      = get_dict_value(struct, 'stamp', 'file', typ=str, default=None);
+    file_stamp = fname;
+    if isinstance(fname, str):
+        fexists   = make_file_if_not_exists(fname, path);
+        overwrite = get_dict_value(struct, 'stamp', 'overwrite', typ=bool, default=False);
         if not fexists or overwrite:
-            lines = create_stamp(get_dict_value(struct, 'stamp', 'options') or {});
-            write_lines(lines, file_stamp, path);
+            options = get_dict_value(struct, 'stamp', 'options', typ=dict, default={});
+            lines   = create_stamp(options);
+            write_lines(lines, fname, path);
+
+    # if the instructions exist, create and fill the preamble file:
+    fname = get_dict_value(struct, 'preamble', 'file', typ=str, default=None);
+    if isinstance(fname, str):
+        fexists   = make_file_if_not_exists(fname, path);
+        overwrite = get_dict_value(struct, 'preamble', 'overwrite', typ=bool, default=False);
+        if not fexists or overwrite:
+            options = get_dict_value(struct, 'preamble', 'options', typ=dict, default={});
+            lines   = create_preamble(options);
+            write_lines(lines, fname, path);
 
     if not is_root:
         return;
 
     # ONLY if at root level: create and fill compile-script:
-    options = get_dict_value(struct, 'compile', 'options', default=None);
-    file_runscript = get_dict_value(struct, 'compile', 'file', typ=str, default=None);
-    to_stdout = get_dict_value(struct, 'compile', 'stdout', typ=bool, default=False);
-    file_input = get_dict_value(options, ['input', 'root'], typ=str, default=None);
+    options     = get_dict_value(struct, 'compile', 'options', default=None);
+    fname       = get_dict_value(struct, 'compile', 'file', typ=str, default=None);
+    to_stdout   = get_dict_value(struct, 'compile', 'stdout', typ=bool, default=False);
+    file_input  = get_dict_value(options, ['input', 'root'], typ=str, default=None);
     file_output = get_dict_value(options, 'output', typ=str, default=None);
-    overwrite = get_dict_value(struct, 'compile', 'overwrite', default=False);
-    if (to_stdout or isinstance(file_runscript, str)) and isinstance(file_input, str) and isinstance(file_output, str):
+    overwrite   = get_dict_value(struct, 'compile', 'overwrite', default=False);
+    if (to_stdout or isinstance(fname, str)) and isinstance(file_input, str) and isinstance(file_output, str):
         command = create_startscript(
             input          = file_input,
             stamp          = file_stamp,
             output         = file_output,
-            show_python    = get_dict_value(options, ['debug', 'show-python'],        typ=bool, default=False),
-            compile_latex  = get_dict_value(options, ['latex', 'compile-latex'],      typ=bool, default=True),
-            insert_bib     = get_dict_value(options, ['insert-bib'],                  typ=bool, default=False),
+            show_python    = get_dict_value(options, ['debug', 'show-python'],        typ=bool,                  default=False),
+            compile_latex  = get_dict_value(options, ['latex', 'compile-latex'],      typ=bool,                  default=True),
+            insert_bib     = get_dict_value(options, ['insert-bib'],                  typ=bool,                  default=False),
             latex_comments = get_dict_value(options, ['latex-comments', 'comments'],  typ=[True, False, 'auto'], default='auto'),
             silent         = not
-                             get_dict_value(options, ['show-tree', 'show-structure'], typ=bool, default=True),
-            seed           = get_dict_value(options, ['seed'],                        typ=int, default=None),
-            tabs           = get_dict_value(options, ['tabs'],                        typ=bool, default=False),
-            spaces         = get_dict_value(options, ['spaces'],                      typ=int, default=4),
-            max_length     = get_dict_value(options, ['max-length', 'maxlength'],     typ=int, default=10000),
+                             get_dict_value(options, ['show-tree', 'show-structure'], typ=bool,                  default=True),
+            seed           = get_dict_value(options, ['seed'],                        typ=int,                   default=None),
+            tabs           = get_dict_value(options, ['tabs'],                        typ=bool,                  default=False),
+            spaces         = get_dict_value(options, ['spaces'],                      typ=int,                   default=4),
+            max_length     = get_dict_value(options, ['max-length', 'maxlength'],     typ=int,                   default=10000),
         );
-        if isinstance(file_runscript, str):
-            fexists = make_file_if_not_exists(file_runscript, path);
+        if isinstance(fname, str):
+            fexists = make_file_if_not_exists(fname, path);
             if not fexists or overwrite:
-                write_lines([r'#! /bin/bash', '', command +';', ''], file_runscript);
+                write_lines([r'#!/bin/bash', '', command +';'], fname);
         if to_stdout:
             print(command);
     return;
 
-def create_stamp(struct: dict) -> List[str]:
+def create_stamp(options: dict) -> List[str]:
     lines = [];
     border = r'%% ' + '*'*80;
 
-    max_tag_length = max([0] + [len(key) for key in struct]);
-    for key in struct:
-        value = struct[key];
+    max_tag_length = max([0] + [len(key) for key in options]);
+    for key in options:
+        value = options[key];
         tag = key.upper();
         line = r'%% ' + tag + r':';
         if isinstance(value, str):
@@ -368,6 +380,15 @@ def create_stamp(struct: dict) -> List[str]:
     if len(lines) > 0:
         lines = [border] + lines + [border];
 
+    return lines;
+
+def create_preamble(options: dict) -> List[str]:
+    lines = [];
+    for key in options:
+        value = to_python_string(options[key]);
+        if not isinstance(value, str):
+            continue;
+        lines += ['<<< set {} = {}; >>>'.format(key, value)];
     return lines;
 
 def create_startscript(
@@ -424,12 +445,12 @@ def create_folders(dir_name: str, struct: dict, path: str):
     subpath = os.path.join(path, dir_name);
 
     # add any files demanded:
-    files = get_dict_value(struct, 'files', default={});
+    files = get_dict_value(struct, 'files', typ=[list, dict], default={});
     for _, fname, _ in get_names(files):
         make_file_if_not_exists(fname, subpath);
 
     # add any subfolders demanded:
-    folders = get_dict_value(struct, 'folders', default={});
+    folders = get_dict_value(struct, 'folders', typ=dict, default={});
     for _, dir_name_, struct_ in get_names(folders):
         make_dir_if_not_exists(dir_name_, subpath);
         create_folders(dir_name_, struct_ or {}, subpath);
@@ -522,6 +543,25 @@ def get_dict_value(obj, key: Union[str,List[str]], *keys: Union[str,List[str]], 
     if obj_ is None or not matchestype(obj_, typ):
         return default;
     return obj_;
+
+def to_python_string(value) -> Union[str, None]:
+    if isinstance(value, str):
+        return "'{}'".format(value);
+    elif isinstance(value, (int, float, bool)) or value is None:
+        return str(value);
+    elif isinstance(value, list):
+        values = [to_python_string(_) for _ in value];
+        if None in values:
+            return None;
+        return '[' + ', '.join([x for x in values if isinstance(x, str)]) + ']';
+    elif isinstance(value, dict):
+        values = [(_, to_python_string(value[_])) for _ in value];
+        for _, __ in values:
+            if __ is None:
+                return None;
+        return '{' + ', '.join(["'{}': {}".format(_, __) for _, __ in values]) + '}';
+        # return 'dict(' + ', '.join(["'{}': {}".format(_, __) for _, __ in values]) + ')';
+    return None;
 
 def message_to_console(message: str, force=False):
     global console_quiet;
