@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 30.05.2019                                             #
-# VERSION: 3·1·5                                                            #
+# ZULETZT VERÄNDERT: 10.09.2019                                             #
+# VERSION: 3·1·6                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -1180,7 +1180,7 @@ class ____phpytexcompiler:
         while has_subs:
             meta = '';
             has_subs = False;
-            for i,u in enumerate(re.split(re_meta, expr)):
+            for _, u in enumerate(re.split(re_meta, expr)):
                 # m = re.match(r'^\<{3}((?:(?!>).)*)\>{3}$', u); # <— problematisch!
                 m = re.match(r'^\<{3}((?![\<|\`])(?:(?!(?:\<{3}|\>{3})).)*)\>{3}$', u);
                 if m:
@@ -1193,6 +1193,8 @@ class ____phpytexcompiler:
                         u = self.GLOBALVARS[u];
                         if isinstance(u, str):
                             u = self.____escapecharacters(u);
+                        else:
+                            u = str(u);
                     meta += u;
                 else:
                     meta += u;
