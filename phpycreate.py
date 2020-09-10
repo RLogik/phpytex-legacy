@@ -6,7 +6,7 @@
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
 # LAST CHANGED: 10.09.2020
-# VERSION: 1·1·1
+# VERSION: 1·1·2
 # NOTES:
 #
 #     Installation:
@@ -41,7 +41,7 @@ from subprocess import Popen;
 from gitignore_parser import parse_gitignore;
 
 console_quiet = False;
-PHPYCREATE_VERSION = '1·1·1';
+PHPYCREATE_VERSION = '1·1·2';
 FILE_EXT_PPTSTRUCT = r'\.phpycreate\.(yml|yaml)';
 FILE_EXT_PPTIGNORE = r'\.phpycreate\.ignore';
 
@@ -79,6 +79,7 @@ def main():
             success = set_wk_dir();
 
         path_wd = os.getcwd();
+        setup_yaml_reader();
         success, obj = get_structure_yamls(path_wd, recursive_creation);
         if not success:
             raise FileExistsError('Could not find \'{}\' file in the project directory!'.format(FILE_EXT_PPTSTRUCT));
@@ -244,18 +245,8 @@ def set_wk_dir():
     message_to_console('...project directory confirmed.', force=True);
     return;
 
-def get_structure_yamls(path: str, recursive: bool) -> Tuple[bool, List[Tuple[str, Dict[str, Any]]]]:
-    global FILE_EXT_PPTSTRUCT;
-    global FILE_EXT_PPTIGNORE;
-
-    pattern_create = FILE_EXT_PPTSTRUCT;
-    regex_create = re.compile(pattern_create);
-    pattern_ignore = FILE_EXT_PPTIGNORE;
-    regex_ignore = re.compile(pattern_ignore);
-
-    ################################################################
-    # START OF YAML CONSTRUCTORS
-    # (add special constructors to yaml)
+# adds special constructors to yaml
+def setup_yaml_reader():
     def join_constructor(loader: Loader, node):
         values = loader.construct_sequence(node, deep=True);
         try:
@@ -271,9 +262,27 @@ def get_structure_yamls(path: str, recursive: bool) -> Tuple[bool, List[Tuple[st
             return value or '';
         except:
             return '';
+
+    def eval_constructor(loader: Loader, node):
+        value = loader.construct_sequence(node, deep=True);
+        try:
+            expr = value[0];
+        except:
+            expr = None;
+        return EvalType(expr);
+
     add_constructor(u'!join', join_constructor);
-    # END OF YAML CONSTRUCTORS
-    ################################################################
+    add_constructor(u'!eval', eval_constructor);
+    return;
+
+def get_structure_yamls(path: str, recursive: bool) -> Tuple[bool, List[Tuple[str, Dict[str, Any]]]]:
+    global FILE_EXT_PPTSTRUCT;
+    global FILE_EXT_PPTIGNORE;
+
+    pattern_create = FILE_EXT_PPTSTRUCT;
+    regex_create = re.compile(pattern_create);
+    pattern_ignore = FILE_EXT_PPTIGNORE;
+    regex_ignore = re.compile(pattern_ignore);
 
     match_ignore = None;
     # extract ignore file (if one exists)
@@ -481,6 +490,35 @@ def create_folders(dir_name: str, struct: dict, path: str):
     return;
 
 # --------------------------------------------------------------------------------
+# LOCAL CLASSES
+# --------------------------------------------------------------------------------
+
+class EvalMetaType(type):
+    __name__ = 'evaluation';
+
+    @classmethod
+    def __instancecheck__(cls, o) -> bool:
+        try:
+            return type(o).__name__ == cls.__name__;
+        except:
+            return False;
+
+class EvalType(metaclass=EvalMetaType):
+    __expr: str = str(None);
+
+    def __init__(self, expr):
+        if isinstance(expr, str):
+            self.__expr = expr;
+        return;
+
+    @property
+    def expr(self):
+        return self.__expr;
+
+    def __str__(self) -> str:
+        return self.expr;
+
+# --------------------------------------------------------------------------------
 # AUXILIARY FUNCTIONS
 # --------------------------------------------------------------------------------
 
@@ -571,7 +609,7 @@ def get_dict_value(obj, key: Union[str,List[str]], *keys: Union[str,List[str]], 
 def to_python_string(value) -> Union[str, None]:
     if isinstance(value, str):
         return "'{}'".format(value);
-    elif isinstance(value, (int, float, bool)) or value is None:
+    elif isinstance(value, (int, float, bool, EvalType)) or value is None:
         return str(value);
     elif isinstance(value, list):
         values = [to_python_string(_) for _ in value];
