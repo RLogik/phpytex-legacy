@@ -6,7 +6,7 @@
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
 # LAST CHANGED: 10.09.2020
-# VERSION: 1·1·0
+# VERSION: 1·1·1
 # NOTES:
 #
 #     Installation:
@@ -28,7 +28,9 @@ import sys;
 sys.tracebacklimit = 0; ## disables traceback.
 import os;
 import re;
+from yaml import add_constructor;
 from yaml import load;
+from yaml import Loader;
 from yaml import FullLoader;
 from typing import Any;
 from typing import Dict;
@@ -39,7 +41,7 @@ from subprocess import Popen;
 from gitignore_parser import parse_gitignore;
 
 console_quiet = False;
-PHPYCREATE_VERSION = '1·0·1';
+PHPYCREATE_VERSION = '1·1·1';
 FILE_EXT_PPTSTRUCT = r'\.phpycreate\.(yml|yaml)';
 FILE_EXT_PPTIGNORE = r'\.phpycreate\.ignore';
 
@@ -250,6 +252,28 @@ def get_structure_yamls(path: str, recursive: bool) -> Tuple[bool, List[Tuple[st
     regex_create = re.compile(pattern_create);
     pattern_ignore = FILE_EXT_PPTIGNORE;
     regex_ignore = re.compile(pattern_ignore);
+
+    ################################################################
+    # START OF YAML CONSTRUCTORS
+    # (add special constructors to yaml)
+    def join_constructor(loader: Loader, node):
+        values = loader.construct_sequence(node, deep=True);
+        try:
+            sep   = str(values[0]);
+            parts = [str(_) for _ in values[1]];
+            # value = sep.join(parts);
+            value = None;
+            for part in parts:
+                if value is None:
+                    value = part;
+                else:
+                    value += sep + part;
+            return value or '';
+        except:
+            return '';
+    add_constructor(u'!join', join_constructor);
+    # END OF YAML CONSTRUCTORS
+    ################################################################
 
     match_ignore = None;
     # extract ignore file (if one exists)
