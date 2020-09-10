@@ -343,14 +343,14 @@ def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
             lines   = create_stamp(options);
             write_lines(lines, fname, path);
 
-    # if the instructions exist, create and fill the preamble file:
-    fname = get_dict_value(struct, 'preamble', 'file', typ=str, default=None);
+    # if the instructions exist, create and fill the parameters file:
+    fname = get_dict_value(struct, 'parameters', 'file', typ=str, default=None);
     if isinstance(fname, str):
         fexists   = make_file_if_not_exists(fname, path);
-        overwrite = get_dict_value(struct, 'preamble', 'overwrite', typ=bool, default=False);
+        overwrite = get_dict_value(struct, 'parameters', 'overwrite', typ=bool, default=False);
         if not fexists or overwrite:
-            options = get_dict_value(struct, 'preamble', 'options', typ=dict, default={});
-            lines   = create_preamble(options);
+            options = get_dict_value(struct, 'parameters', 'options', typ=dict, default={});
+            lines   = create_parameters(options);
             write_lines(lines, fname, path);
 
     if not is_root:
@@ -415,7 +415,7 @@ def create_stamp(options: dict) -> List[str]:
 
     return lines;
 
-def create_preamble(options: dict) -> List[str]:
+def create_parameters(options: dict) -> List[str]:
     lines = [];
     for key in options:
         value = to_python_string(options[key]);
