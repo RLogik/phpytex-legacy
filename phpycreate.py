@@ -6,7 +6,7 @@
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
 # LAST CHANGED: 10.09.2020
-# VERSION: 1·1·2
+# VERSION: 1·1·3
 # NOTES:
 #
 #     Installation:
@@ -41,7 +41,7 @@ from subprocess import Popen;
 from gitignore_parser import parse_gitignore;
 
 console_quiet = False;
-PHPYCREATE_VERSION = '1·1·2';
+PHPYCREATE_VERSION = '1·1·3';
 FILE_EXT_PPTSTRUCT = r'\.phpycreate\.(yml|yaml)';
 FILE_EXT_PPTIGNORE = r'\.phpycreate\.ignore';
 
