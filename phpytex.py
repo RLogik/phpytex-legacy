@@ -632,8 +632,8 @@ class ____phpytexcompiler:
         if not silent:
             self.____addpytexline(lines=preamble, verbatim=verbatim, expr=[
                 '%% ******************************************************************************',
-                '%% DATEIAUFBAU:',
-                '%% ~~~~~~~~~~~~',
+                '%% DOCUMENT STRUCTURE:',
+                '%% ~~~~~~~~~~~~~~~~~~~',
                 '%%',
             ] + struct + [
                 '%%',
@@ -728,11 +728,13 @@ class ____phpytexcompiler:
             print('    '*(indent['struct']+1)+'— '+nom+';');
             struct.append('%%'+'    '*(indent['struct']+1)+'— '+nom+';');
             if not silent:
+                # __indent = self.INDENTCHARACTER*indent['struct'];
+                __indent = '';
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, indent=indent['py'], expr=[
                     '',
-                    self.INDENTCHARACTER*indent['struct']+'%% ******************************************************************************',
-                    self.INDENTCHARACTER*indent['struct']+'%% DATEI: '+nom,
-                    self.INDENTCHARACTER*indent['struct']+'%% ******************************************************************************',
+                    __indent + '%% ******************************************************************************',
+                    __indent + '%% FILE: ' + nom,
+                    __indent + '%% ******************************************************************************',
                     '',
                 ], mode='meta');
 
@@ -855,6 +857,25 @@ class ____phpytexcompiler:
             # 	], mode='direkt');
             # 	continue;
 
+            # # Zeile: Gebrauch eines LaTeX-Befehls
+            # m = re.match(r'^(\s*)(?:\<{2}\{|\`{3}tex)\s*(define|use)::(.*?)(?:\}\>{2}|\`{3})', line);
+            # if m and not m_inline:
+            #     if mute:
+            #         continue;
+            #     indent_code_offset = self.____countindents(m.group(1));
+            #     code_language = 'tex';
+            #     ltx_category = m.group(2);
+            #     ltx_command = re.sub(r'^[\s]+|[\;\s]+$', '', m.group(3));
+            #     bool_insidecode = True;
+            #     self.____addlatexline(
+            #         lines=[],
+            #         verbatim=verbatim,
+            #         linenr=linenr,
+            #         expr=['<<< {} {}::{}; >>>'.format(code_language, ltx_category, ltx_command)],
+            #         mode='direkt'
+            #     );
+            #     continue;
+
             # Zeile: Start eines Codeblocks
             m = re.match(r'^(\s*)(?:\<{3}|\`{3})\s*((?![\<\`]).*\S|)\s*$', line);
             m_inline = re.match(r'^\s*(?:\<{3}|\`{3}).*(?:\>{3}|\`{3})', line);
@@ -876,6 +897,19 @@ class ____phpytexcompiler:
                 bool_insidecode = False;
                 self.____addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['>>>'], mode='direkt');
                 continue;
+
+            # if bool_insidecode and code_language == 'tex':
+            #     if ltx_category == 'define':
+            #         print('defining!')
+            #         pass;
+            #     elif ltx_category == 'use':
+            #         print('using!')
+            #         pass;
+            #     else:
+            #         continue;
+            #     # self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
+            #     bool_insidecode = False;
+            #     continue;
 
             # Zeile: Python-Code
             if bool_insidecode and code_language == 'python':
@@ -1056,13 +1090,16 @@ class ____phpytexcompiler:
                     print('    '*(indent_['struct']+1)+'— '+nom+';');
                     struct.append('%%'+'    '*(indent_['struct']+1)+'|');
                     struct.append('%%'+'    '*(indent_['struct']+1)+'— '+nom+';');
-                    self.____addpytexline(lines=filecontents, verbatim=verbatim, expr=[
-                        '',
-                        self.INDENTCHARACTER*indent_['struct']+'%% ******************************************************************************',
-                        self.INDENTCHARACTER*indent_['struct']+'%% DATEI: '+nom,
-                        self.INDENTCHARACTER*indent_['struct']+'%% ******************************************************************************',
-                        '',
-                    ], indent=indent['py'], mode='meta');
+                    if not silent:
+                        # __indent = self.INDENTCHARACTER*indent_['struct'];
+                        __indent = '';
+                        self.____addpytexline(lines=filecontents, verbatim=verbatim, expr=[
+                            '',
+                            __indent + '%% ******************************************************************************',
+                            __indent + '%% FILE: '+nom,
+                            __indent + '%% ******************************************************************************',
+                            '',
+                        ], indent=indent['py'], mode='meta');
 
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
 
@@ -1089,7 +1126,8 @@ class ____phpytexcompiler:
             # Zeile: normaler LaTeX (Kommentare am Ende einer Zeile werden nicht gelöscht)
             if bool_belowfile:
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, indent=indent['py'], expr=[''], anon=anon, mode='meta');
-            line = self.INDENTCHARACTER*indent['tex']+line;
+            # ## indent line by current tex-indentation level:
+            # line = self.INDENTCHARACTER*indent['tex'] + line;
             # m = re.match(r'^(|.*?(?!\\).)(\%.*)$', line);
             # if m:
             #     line = m.group(1).rstrip();
@@ -1100,7 +1138,6 @@ class ____phpytexcompiler:
             len_empty = 0;
             len_comm = 0;
             continue;
-
 
         self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
             self.INDENTCHARACTER*self.INDENTCODE + r"____ignore('rem');",
