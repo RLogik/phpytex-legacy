@@ -1056,7 +1056,6 @@ class ____phpytexcompiler:
                     print(line);
                     print("----------------------------------------------------------------");
                     continue;
-                    continue;
 
                 nom  = self.____extractfilename(path=nom_sub, root=root, relative=False, ext='bib');
 
@@ -1289,10 +1288,10 @@ class ____phpytexcompiler:
 
         return [line];
 
-    def ____remove_quotes(self, s):
+    def ____remove_quotes(self, s: str):
         return re.sub(r'^[\'\"]+|[\'\"]+$', '', s);
 
-    def ____escapecharacters(self, s):
+    def ____escapecharacters(self, s: str):
         s = re.sub(r'(\\+)', r'\1\1', s);
         s = re.sub(r'\n', r'\\n', s);
         s = re.sub(r'\t', r'\\t', s);
@@ -1302,7 +1301,7 @@ class ____phpytexcompiler:
         return s;
 
     ## verwandelt Strings in starke Metastrings:
-    def ____metastring(self, s):
+    def ____metastring(self, s: str):
         meta = "r''";
         s = re.sub(r'(\\+)', r'\1\1', s);
         s = re.sub(r'\n', r'\\n', s);
@@ -1329,10 +1328,10 @@ class ____phpytexcompiler:
         lines = [self.INDENTCHARACTER*indent + line];
         return lines;
 
-    def ____countindents(self, s):
+    def ____countindents(self, s: str):
         return len(re.findall(self.INDENTCHARACTER_re, s));
 
-    def ____censorpath(self, path):
+    def ____censorpath(self, path: str):
         return '#'*len(path);
 
     pass;
