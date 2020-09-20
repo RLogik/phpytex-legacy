@@ -36,31 +36,34 @@ import numpy as np;
 import subprocess;
 
 class ____phpytexcompiler:
-    def __init__(self):
-        ## GLOBALE VARIABLE
-        self.GLOBALVARS = {'__ROOT__':'.', '__DIR__':'.'};
-        self.INCLUDES = [];
-        self.CURRDIR = os.path.abspath('');
-        self.ROOTDIR = self.CURRDIR;
-        self.INSERTBIB = False;
-        self.ERROR = False;
-        self.PYERROR = False;
-        self.STAMPDATEI = None;
-        self.HAUPTDATEI = None;
-        self.OUTPUTDATEI = None;
-        self.GETEILTERORDNER = None;
-        self.LENPRECODE = 0;
-        self.LENGTHOFOUTPUT = 0; ## <-- Anzahl der Zeilen.
-        self.MAXLENGTH = 10000; ## verhindere, dass die Datei zu groß wird.
-        self.TOOLONG = False;
-        # self.SEED = np.random.get_state()[1][0];
-        self.SEED = np.random.choice(100000000);
-        self.PRECOMPILELINES = [];
+    ## GLOBALE VARIABLE
+    GLOBALVARS         = {'__ROOT__':'.', '__DIR__':'.'};
+    INCLUDES           = [];
+    CURRDIR            = os.path.abspath('');
+    ROOTDIR            = CURRDIR;
+    INSERTBIB          = False;
+    ERROR              = False;
+    PYERROR            = False;
+    STAMPDATEI         = None;
+    HAUPTDATEI         = None;
+    OUTPUTDATEI        = None;
+    GETEILTERORDNER    = None;
+    LENPRECODE         = 0;
+    LENGTHOFOUTPUT     = 0; ## <-- Anzahl der Zeilen.
+    MAXLENGTH          = 10000; ## verhindere, dass die Datei zu groß wird.
+    TOOLONG            = False;
+    # SEED             = np.random.get_state()[1][0];
+    SEED               = np.random.choice(100000000);
 
-        ## Hier kann man optional den Defaulttabcharakter bestimmen:
-        self.INDENTCODE = 1;
-        self.INDENTCHARACTER = '    ';
-        self.INDENTCHARACTER_re = r'    ';
+    PRECOMPILELINES    = [];
+    CENSORLENGTH       = 8;
+
+    ## Hier kann man optional den Defaulttabcharakter bestimmen:
+    INDENTCODE         = 1;
+    INDENTCHARACTER    = '    ';
+    INDENTCHARACTER_re = r'    ';
+
+    def __init__(self):
         pass;
 
     ## HAUPTVORGANG
@@ -1332,7 +1335,8 @@ class ____phpytexcompiler:
         return len(re.findall(self.INDENTCHARACTER_re, s));
 
     def ____censorpath(self, path: str):
-        return '#'*len(path);
+        # return '#'*len(path);
+        return '#'*self.CENSORLENGTH;
 
     pass;
 
