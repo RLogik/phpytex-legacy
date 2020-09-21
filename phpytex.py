@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 10.09.2019                                             #
-# VERSION: 3·1·6                                                            #
+# ZULETZT VERÄNDERT: 21.09.2019                                             #
+# VERSION: 3·1·7                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -31,9 +31,10 @@
 import sys;
 import os;
 import re;
+
+from typing import Union;
+from typing import Dict;
 import numpy;
-import numpy as np;
-import subprocess;
 
 class ____phpytexcompiler:
     ## GLOBALE VARIABLE
@@ -52,8 +53,8 @@ class ____phpytexcompiler:
     LENGTHOFOUTPUT     = 0; ## <-- Anzahl der Zeilen.
     MAXLENGTH          = 10000; ## verhindere, dass die Datei zu groß wird.
     TOOLONG            = False;
-    # SEED             = np.random.get_state()[1][0];
-    SEED               = np.random.choice(100000000);
+    # SEED             = numpy.random.get_state()[1][0];
+    SEED               = numpy.random.choice(100000000);
 
     PRECOMPILELINES    = [];
     CENSORLENGTH       = 8;
@@ -118,10 +119,10 @@ class ____phpytexcompiler:
 ''');
             return;
 
-        self.HAUPTDATEI = params['i'];
-        self.OUTPUTDATEI = params['o'];
+        self.HAUPTDATEI = str(params['i']);
+        self.OUTPUTDATEI = str(params['o']);
         if 'path' in params:
-            self.ROOTDIR = params['path'];
+            self.ROOTDIR = str(params['path']);
             self.GLOBALVARS['__ROOT__'] = self.ROOTDIR;
 
         self.HAUPTDATEI = self.____extractfilename(path=self.HAUPTDATEI, relative=True);
@@ -165,7 +166,7 @@ class ____phpytexcompiler:
         self.PRECOMPILELINES = [];
         lines = [];
         struct = [];
-        np.random.seed(self.SEED); ## nur ein Mal ausführen!
+        numpy.random.seed(self.SEED); ## nur ein Mal ausführen!
         erfolg = self.____knit(filecontents=lines, verbatim=self.PRECOMPILELINES, struct=struct, mute=False, silent=silent, filename={'src':self.HAUPTDATEI, 'main':self.OUTPUTDATEI+'.tex'}, params=params);
         if not erfolg:
             return;
@@ -180,7 +181,7 @@ class ____phpytexcompiler:
 
 
     ## METHODEN
-    def ____getarguments(self, sysargs):
+    def ____getarguments(self, sysargs) -> Dict[str, Union[str, bool]]:
         params = {};
         flags_bool = ['anon','silent','man','usage','guide','help','no-comm','no-comm-auto','insert-bib','debug','tab','tabs','no-compile'];
         for key in flags_bool:
@@ -221,28 +222,27 @@ class ____phpytexcompiler:
             r'''import numpy;''',
             r'''import numpy as np;''',
             r'''''',
-            r'''''',
-            r'''____lines____ = {'post-compile':[], 'anon':[], 'bib':{}};''',
-            r'''____indent____ = ''' + "'" + self.INDENTCHARACTER_re + "'" + ''';''',
-            r'''____filetex_name____ = "'''+fname+'''";''',
+            r'''____lines____            = {'post-compile':[], 'anon':[], 'bib':{}};''',
+            r'''____len_empty_block____  = 0;''',
+            r'''____indent____           = ''' + "'" + self.INDENTCHARACTER_re + "'" + ''';''',
+            r'''____filetex_name____     = "'''+fname+'''";''',
             r'''____filetex_name_rel____ = "'''+fname_rel+'''";''',
-            r'''____filetex____ = None;''',
-            r'''____sharefolder____ = '''+share_folder+''';''',
-            r'''____error_toolong____ = False;''',
-            r'''____outputlength____ = 0;''',
-            r'''____maxlength____ = '''+str(self.MAXLENGTH)+''';''',
-            r'''____insertbib____ = '''+str(self.INSERTBIB)+''';''',
-            r'''____compilelatex____ = '''+str(cmpl)+''';''',
-            r'''____last_latex____ = None;''',
-            r'''____rootdir____ = "'''+self.ROOTDIR+'''";''',
-            r'''____seed____ = '''+str(self.SEED)+''';''',
-            r'''__ROOT__ = None;''',
-            r'''__DIR__ = None;''',
-            r'''__SKIP__ = None;''',
-            r'''__FNAME__ = None;''',
-            r'''__LINENR__ = None;''',
-            r'''____error_eval____ = False;''',
-            r'''''',
+            r'''____filetex____          = None;''',
+            r'''____sharefolder____      = '''+share_folder+''';''',
+            r'''____error_toolong____    = False;''',
+            r'''____outputlength____     = 0;''',
+            r'''____maxlength____        = '''+str(self.MAXLENGTH)+''';''',
+            r'''____insertbib____        = '''+str(self.INSERTBIB)+''';''',
+            r'''____compilelatex____     = '''+str(cmpl)+''';''',
+            r'''____last_latex____       = None;''',
+            r'''____rootdir____          = "'''+self.ROOTDIR+'''";''',
+            r'''____seed____             = '''+str(self.SEED)+''';''',
+            r'''__ROOT__                 = None;''',
+            r'''__DIR__                  = None;''',
+            r'''__SKIP__                 = None;''',
+            r'''__FNAME__                = None;''',
+            r'''__LINENR__               = None;''',
+            r'''____error_eval____       = False;''',
             r'''''',
             r'''## reseed-funktion:''',
             r'''def ____reseed():''',
@@ -250,44 +250,42 @@ class ____phpytexcompiler:
             tab+r'''np.random.seed(____seed____);''',
             tab+r'''return True;''',
             r'''''',
-            r'''''',
             r'''class ____skipclass:''',
             tab+r'''def __init__(self):''',
             tab+tab+r'''self.len = 0;''',
             tab+tab+r'''self.chain = [];''',
             tab+tab+r'''self.status = False;''',
             tab+tab+r'''pass;''',
-            r'''''',
+            tab+r'''''',
             tab+r'''def get(self):''',
             tab+tab+r'''self.status = (True in self.chain);''',
             tab+tab+r'''return self.status;''',
-            r'''''',
+            tab+r'''''',
             tab+r'''def set(self, val):''',
             tab+tab+r'''if self.len == 0:''',
             tab+tab+tab+r'''return False;''',
             tab+tab+r'''self.chain[self.len-1] = val;''',
             tab+tab+r'''self.get();''',
             tab+tab+r'''return True;''',
-            r'''''',
+            tab+r'''''',
             tab+r'''def add(self, val):''',
             tab+tab+r'''self.chain.append(val);''',
             tab+tab+r'''self.len += 1;''',
             tab+tab+r'''self.get();''',
             tab+tab+r'''pass;''',
-            r'''''',
+            tab+r'''''',
             tab+r'''def rem(self):''',
             tab+tab+r'''self.chain = self.chain[:-1];''',
             tab+tab+r'''self.len -= 1;''',
             tab+tab+r'''self.get();''',
             tab+tab+r'''pass;''',
-            r'''''',
+            tab+r'''''',
             tab+r'''pass;''',
-            r'''''',
             r'''''',
             r'''def ____ignore(opt, val=None):''',
             tab+r'''global __SKIP__;''',
             tab+r'''global ____skipclass;''',
-            r'''''',
+            tab+r'''''',
             tab+r'''if opt == 'get':''',
             tab+tab+r'''return __SKIP__.get();''',
             tab+r'''elif opt == 'add':''',
@@ -299,7 +297,6 @@ class ____phpytexcompiler:
             tab+r'''elif opt == 'init':''',
             tab+tab+r'''__SKIP__ = ____skipclass();''',
             tab+r'''pass;''',
-            r'''''',
             r'''''',
             r'''## expand: quickpython —> prä-eval-Ausdruck''',
             r'''def ____qp(linenr=None, expr='', params={}):''',
@@ -342,35 +339,40 @@ class ____phpytexcompiler:
             tab+tab+tab+r'''continue;''',
             tab+tab+r'''expr = meta;''',
             tab+tab+r'''continue;''',
-            r'''''',
+            tab+r'''''',
             tab+r'''return expr;''',
             r'''''',
-            r'''''',
-            r'''# record+print-to-latex''',
+            r'''## record+print-to-latex''',
             r'''def ____print(s, anon=False):''',
             tab+r'''if ____ignore('get'):''',
             tab+tab+r'''return;''',
             tab+r'''''',
             tab+r'''global ____filetex____;''',
             tab+r'''global ____lines____;''',
+            tab+r'''global ____len_empty_block____;''',
             tab+r'''global ____error_eval____;''',
             tab+r'''global ____error_toolong____;''',
             tab+r'''global ____outputlength____;''',
             tab+r'''global ____maxlength____;''',
+            tab+r'''''',
+            tab+r'''## reduces blocks of empty lines to single empty lines:''',
+            tab+r'''____len_empty_block____ = (____len_empty_block____ + 1) if re.match(r'^\s*$', s) else 0;''',
+            tab+r'''if ____len_empty_block____ > 1:''',
+            tab+tab+r'''return;''',
             tab+r'''''',
             tab+r'''____error_eval____ = False;''',
             tab+r'''if ____error_toolong____:''',
             tab+tab+r'''return;''',
             tab+r'''____outputlength____ += 1;''',
             tab+r'''if ____outputlength____ > ____maxlength____:''',
-            tab+tab+r'''____error_toolong____ = True; ''',
+            tab+tab+r'''____error_toolong____ = True;''',
+            tab+r'''''',
             tab+r'''print(s, file=____filetex____);''',
             tab+r'''____lines____['post-compile'].append(s);''',
             tab+r'''if anon:''',
             tab+tab+r'''n = len(____lines____['post-compile']);''',
             tab+tab+r'''____lines____['anon'].append(n-1);''',
             tab+r'''return;''',
-            r'''''',
             r'''''',
             r'''def ____forceprint(s, anon=False):''',
             tab+r'''global ____filetex____;''',
@@ -383,12 +385,11 @@ class ____phpytexcompiler:
             tab+tab+r'''____lines____['anon'].append(n-1);''',
             tab+r'''return;''',
             r'''''',
-            r'''''',
-            '''def ____insertbib(fname='', src='', indent='', anon=False):''',
+            r'''def ____insertbib(fname='', src='', indent='', anon=False):''',
             tab+r'''global ____filetex____;''',
             tab+r'''global ____lines____;''',
             tab+r'''global ____insertbib____;''',
-            tab+r'''''',
+            r'''''',
             tab+r'''nom, _ = os.path.splitext(fname);''',
             tab+r'''line = indent + r'\bibliography{'+nom+'}';''',
             tab+r'''print(line, file=____filetex____);''',
@@ -402,7 +403,6 @@ class ____phpytexcompiler:
             tab+r'''elif ____insertbib____:''',
             tab+tab+r'''____lines____['bib'][src].append(n-1);''',
             tab+r'''return;''',
-            r'''''',
             r'''''',
             r'''## PDFLATEX:''',
             r'''def ____compilelatex():''',
@@ -431,16 +431,15 @@ class ____phpytexcompiler:
             tab+r'''print('\t... kopieren erfolgreich.');''',
             tab+r'''return;''',
             r'''''',
-            r'''''',
             r'''## ERSETZUNG VON \bibliography-Befehlen durch Inhalte + Anonymisierung:''',
             r'''def ____cleanlatex():''',
             tab+r'''global ____filetex____;''',
             tab+r'''global ____filetex_name____;''',
             tab+r'''global ____lines____;''',
             tab+r'''global ____insertbib;''',
-            r'''''',
+            tab+r'''''',
             tab+r'''____filetex____ = open(____filetex_name____, 'w+');''',
-            r'''''',
+            tab+r'''''',
             tab+r'''bibindex = [];''',
             tab+r'''bibtext = {};''',
             tab+r'''for src in ____lines____['bib']:''',
@@ -463,7 +462,8 @@ class ____phpytexcompiler:
             tab+tab+tab+r'''print('ACHTUNG! Bib-Datei {'+src+'} konnte nicht gefunden werden');''',
             tab+tab+r'''bibtext[src] = biblines;''',
             tab+tab+r'''pass;''',
-            r'''''',
+            tab+r'''''',
+            tab+r'''nr_lines = len(____lines____['post-compile']);''',
             tab+r'''for n, line in enumerate(____lines____['post-compile']):''',
             tab+tab+r'''if n in ____lines____['anon']:''',
             tab+tab+tab+r'''continue;''',
@@ -483,12 +483,13 @@ class ____phpytexcompiler:
             tab+tab+tab+tab+tab+r'''continue;''',
             tab+tab+tab+r'''except:''',
             tab+tab+tab+tab+r'''pass;''',
+            tab+tab+r'''if n == nr_lines-1 and line == '':''',
+            tab+tab+tab+r'''continue;''',
             tab+tab+r'''print(line, file=____filetex____);''',
             tab+tab+r'''pass;''',
-            r'''''',
+            tab+r'''''',
             tab+r'''____filetex____.close();''',
             tab+r'''return;''',
-            r'''''',
             r'''''',
             r'''def ____compilephpytex():''',
             tab+r'''global ____filetex____;''',
@@ -501,18 +502,13 @@ class ____phpytexcompiler:
             tab+r'''global __DIR__;''',
             tab+r'''global __FNAME__;''',
             tab+r'''global __LINENR__;''',
-            r'''''',
-            r'''''',
+            tab+r'''''',
             tab+r'''____ignore('init');''',
-            r'''''',
             r'''''',
         ];
         self.LENPRECODE = len(lines_pre);
         lines = lines_pre + lines + [
-            r'''''',
-            r'''''',
             tab+r'''return;''',
-            r'''''',
             r'''''',
             r'''try:''',
             tab+r'''____filetex____ = open(____filetex_name____, 'w+');''',
@@ -640,8 +636,7 @@ class ____phpytexcompiler:
                 '%%',
             ] + struct + [
                 '%%',
-                '%% Gebrauchter SEED: '+str(self.SEED),
-                '%% [x] = Dokument fehlt.',
+                '%% DOCUMENT RANDOM SEED: '+str(self.SEED),
                 '%% ********************************************************************************',
             ], mode='meta');
 
@@ -670,7 +665,7 @@ class ____phpytexcompiler:
                 _, ext = os.path.splitext(fname_src);
                 if ext == '':
                     fname_src += '.tex';
-            nom, root, fname = self.____extractfilename(path=fname_src, root=root, split=True);
+            nom, root, _ = self.____extractfilename(path=fname_src, root=root, split=True);
             src = nom;
         else:
             bool_getfile = False;
@@ -746,14 +741,9 @@ class ____phpytexcompiler:
         fp.close();
         erfolg = True;
         chain_ = chain[::];
-        bool_belowcontent = False;
-        bool_belowfile = False;
-        bool_insidecomment = False;
         bool_insidecode = False;
         code_language = '';
         indent_code_offset = 0;
-        len_comm = 0;
-        len_empty = 0;
 
         for linenr, line in enumerate(lines):
             if self.ERROR:
@@ -767,27 +757,6 @@ class ____phpytexcompiler:
                 line = self.INDENTCHARACTER*self.INDENTCODE + line;
                 line = re.sub(r'\s+$', '', line);
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
-                continue;
-
-            # Zeile: leer
-            m = re.match(r'^\s*$', line);
-            if m:
-                if bool_insidecomment:
-                    len_comm += 1;
-                if bool_insidecode and code_language == 'python':
-                    self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[''], mode='direkt');
-                    continue;
-                if bool_insidecode and not re.match(r'tex',code_language):
-                    continue;
-                if bool_belowfile:
-                    continue;
-                if bool_belowcontent:
-                    if len_empty < 1: # 1 = maximale länge von einem leeren Block
-                        self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, indent=indent['py'], expr=[''], anon=anon, mode='meta');
-                    len_empty += 1;
-                    continue;
-                if bool_insidecomment:
-                    continue;
                 continue;
 
             # Zeile: Quick-Python SET
@@ -860,25 +829,6 @@ class ____phpytexcompiler:
             # 	], mode='direkt');
             # 	continue;
 
-            # # Zeile: Gebrauch eines LaTeX-Befehls
-            # m = re.match(r'^(\s*)(?:\<{2}\{|\`{3}tex)\s*(define|use)::(.*?)(?:\}\>{2}|\`{3})', line);
-            # if m and not m_inline:
-            #     if mute:
-            #         continue;
-            #     indent_code_offset = self.____countindents(m.group(1));
-            #     code_language = 'tex';
-            #     ltx_category = m.group(2);
-            #     ltx_command = re.sub(r'^[\s]+|[\;\s]+$', '', m.group(3));
-            #     bool_insidecode = True;
-            #     self.____addlatexline(
-            #         lines=[],
-            #         verbatim=verbatim,
-            #         linenr=linenr,
-            #         expr=['<<< {} {}::{}; >>>'.format(code_language, ltx_category, ltx_command)],
-            #         mode='direkt'
-            #     );
-            #     continue;
-
             # Zeile: Start eines Codeblocks
             m = re.match(r'^(\s*)(?:\<{3}|\`{3})\s*((?![\<\`]).*\S|)\s*$', line);
             m_inline = re.match(r'^\s*(?:\<{3}|\`{3}).*(?:\>{3}|\`{3})', line);
@@ -900,19 +850,6 @@ class ____phpytexcompiler:
                 bool_insidecode = False;
                 self.____addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['>>>'], mode='direkt');
                 continue;
-
-            # if bool_insidecode and code_language == 'tex':
-            #     if ltx_category == 'define':
-            #         print('defining!')
-            #         pass;
-            #     elif ltx_category == 'use':
-            #         print('using!')
-            #         pass;
-            #     else:
-            #         continue;
-            #     # self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
-            #     bool_insidecode = False;
-            #     continue;
 
             # Zeile: Python-Code
             if bool_insidecode and code_language == 'python':
@@ -1027,12 +964,6 @@ class ____phpytexcompiler:
                 self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, linenr=linenr, expr=orientation, mode='direkt');
                 lines_ = self.____postcompile(key='__LINENR__', val=linenr, symbolic=False);
                 self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, linenr=linenr, expr=lines_, mode='direkt');
-
-                bool_belowcontent = False;
-                bool_belowfile = True;
-                bool_insidecomment = False;
-                len_empty = 0;
-                len_comm = 0;
                 continue;
 
             # Zeile: <<< bibliography... >>>
@@ -1043,7 +974,6 @@ class ____phpytexcompiler:
                 typ = m.group(2);
                 nom = m.group(3);
                 nom = re.sub(r'^[\s]+|[\s\;]+$', '', nom);
-                nom_init = nom;
                 nom_sub, is_bad = self.____expandquickpython(expr=nom);
 
                 ## prüfe, ob es möglich ist, die Inputdatei präkompiliert zu laden:
@@ -1104,41 +1034,25 @@ class ____phpytexcompiler:
                         ], indent=indent['py'], mode='meta');
 
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
-
-                bool_belowcontent = False;
-                bool_belowfile = True;
-                bool_insidecomment = False;
-
-                len_empty = 0;
-                len_comm = 0;
                 continue;
 
-            # Zeile: Kommentar
-            if params['no-comm'] or params['no-comm-auto']:
-                m = re.match(r'^\s*(\%+).*', line);
-                if m:
-                    n_zeichen = len(m.group(1));
-                    if params['no-comm'] or (params['no-comm-auto'] and n_zeichen == 1):
-                        if not bool_insidecomment:
-                            len_comm = 0;
-                        bool_insidecomment = True;
-                        len_comm += 1;
-                        continue;
+            # Zeile: Kommentar -> entscheide, ob Zeile übersprungen werden soll:
+            m = re.match(r'^\s*(\%+).*', line);
+            if m:
+                n_zeichen = len(m.group(1));
+                if params['no-comm'] or (params['no-comm-auto'] and n_zeichen == 1):
+                    ## <continue: i. e. remove line>
+                    continue;
+                ## otherwise display line...
 
             # Zeile: normaler LaTeX (Kommentare am Ende einer Zeile werden nicht gelöscht)
-            if bool_belowfile:
-                self.____addpytexline(lines=filecontents, verbatim=verbatim, indent=indent['py'], expr=[''], anon=anon, mode='meta');
             # ## indent line by current tex-indentation level:
             # line = self.INDENTCHARACTER*indent['tex'] + line;
             # m = re.match(r'^(|.*?(?!\\).)(\%.*)$', line);
             # if m:
             #     line = m.group(1).rstrip();
+
             self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, indent=indent['py'], expr=[line], anon=anon, mode='meta');
-            bool_belowcontent = True;
-            bool_belowfile = False;
-            bool_insidecomment = False;
-            len_empty = 0;
-            len_comm = 0;
             continue;
 
         self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
