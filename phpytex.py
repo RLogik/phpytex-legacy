@@ -726,15 +726,13 @@ class ____phpytexcompiler:
             print('    '*(indent['struct']+1)+'— '+nom+';');
             struct.append('%%'+'    '*(indent['struct']+1)+'— '+nom+';');
             if not silent:
-                # __indent = self.INDENTCHARACTER*indent['struct'];
-                __indent = '';
-                self.____addpytexline(lines=filecontents, verbatim=verbatim, indent=indent['py'], expr=[
+                self.____addpytexline(lines=filecontents, verbatim=verbatim, expr=[
                     '',
-                    __indent + '%% ********************************************************************************',
-                    __indent + '%% FILE: ' + nom,
-                    __indent + '%% ********************************************************************************',
+                    '%% ********************************************************************************',
+                    '%% FILE: ' + nom,
+                    '%% ********************************************************************************',
                     '',
-                ], mode='meta');
+                ], indent=indent['py'], mode='meta');
 
         ## Zeilen einlesen und interpretieren:
         lines = fp.readlines();
@@ -1023,13 +1021,11 @@ class ____phpytexcompiler:
                     struct.append('%%'+'    '*(indent_['struct']+1)+'|');
                     struct.append('%%'+'    '*(indent_['struct']+1)+'— '+nom+';');
                     if not silent:
-                        # __indent = self.INDENTCHARACTER*indent_['struct'];
-                        __indent = '';
                         self.____addpytexline(lines=filecontents, verbatim=verbatim, expr=[
                             '',
-                            __indent + '%% ********************************************************************************',
-                            __indent + '%% FILE: '+nom,
-                            __indent + '%% ********************************************************************************',
+                            '%% ********************************************************************************',
+                            '%% FILE: '+nom,
+                            '%% ********************************************************************************',
                             '',
                         ], indent=indent['py'], mode='meta');
 
