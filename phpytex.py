@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 21.09.2019                                             #
-# VERSION: 3·1·7                                                            #
+# ZULETZT VERÄNDERT: 1.10.2020                                              #
+# VERSION: 3·1·8                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -27,10 +27,10 @@
 #                                                                           #
 #############################################################################
 
-
 import sys;
 import os;
 import re;
+import subprocess;
 
 from typing import Union;
 from typing import Dict;
@@ -217,7 +217,6 @@ class ____phpytexcompiler:
             r'''import sys;''',
             r'''import os;''',
             r'''import re;''',
-            r'''import traceback;''',
             r'''import subprocess;''',
             r'''import numpy;''',
             r'''import numpy as np;''',
@@ -519,7 +518,7 @@ class ____phpytexcompiler:
             tab+r'''else:''',
             tab+tab+r'''print('\nPDFLATEX WIRD NICHT AUSGEFÜHRT.');''',
             tab+r'''____cleanlatex();''',
-            r'''except:''',
+            r'''except Exception as e:''',
             tab+r'''print("----------------------------------------------------------------");''',
             tab+r'''print("!!! (PH(p)y)TeX Kompilationsfehler !!!");''',
             tab+r'''if ____error_eval____:''',
@@ -541,26 +540,31 @@ class ____phpytexcompiler:
             tab+r'''else:''',
             tab+tab+r'''print("----------------------------------------------------------------");''',
             tab+tab+r'''print(sys.exc_info())''',
+            tab+tab+r'''print(e)''',
             tab+tab+r'''print("----------------------------------------------------------------");''',
             r'''''',
         ];
         return lines;
 
+
     def ____execmetacode(self, lines=[], fname='', debug=False, cmpl=False):
         lines = self.____createmetacode(lines=lines, fname=fname, cmpl=cmpl);
+        fname_rel = self.____extractfilename(path=fname, relative=True, ext='');
+        ____filetex____ = open(fname, 'w+');
+        ____filetex____.write('\n'.join(lines));
+        ____filetex____.close();
 
         if debug:
-            fname_rel = self.____extractfilename(path=fname, relative=True, ext='');
-            ____filetex____ = open(fname, 'w+');
-            ____filetex____.write('\n'.join(lines));
-            ____filetex____.close();
             print('\nSiehe Outputdatei: {'+fname_rel+'.tex}.');
             print('\n(PH(p)y)TeX FERTIG.');
             return;
 
         try:
-            code = compile('\n'.join(lines), '<string>', mode='exec');
-            exec(code);
+            ## Former method: Removed---avoid usage of 'exec'!!
+            # code = compile('\n'.join(lines), '<string>', mode='exec');
+            # exec(code);
+            proc = subprocess.Popen(['python3', fname_rel]);
+            proc.wait();
         except:
             self.ERROR = True;
             self.PYERROR = True;
@@ -636,7 +640,7 @@ class ____phpytexcompiler:
                 '%%',
             ] + struct + [
                 '%%',
-                '%% DOCUMENT RANDOM SEED: '+str(self.SEED),
+                '%% DOCUMENT-RANDOM-SEED: '+str(self.SEED),
                 '%% ********************************************************************************',
             ], mode='meta');
 
@@ -729,7 +733,7 @@ class ____phpytexcompiler:
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, expr=[
                     '',
                     '%% ********************************************************************************',
-                    '%% FILE: ' + nom,
+                    '%% FILE: {name}'.format(name=nom),
                     '%% ********************************************************************************',
                     '',
                 ], indent=indent['py'], mode='meta');
@@ -1024,7 +1028,7 @@ class ____phpytexcompiler:
                         self.____addpytexline(lines=filecontents, verbatim=verbatim, expr=[
                             '',
                             '%% ********************************************************************************',
-                            '%% FILE: '+nom,
+                            '%% FILE: {name}'.format(name=nom),
                             '%% ********************************************************************************',
                             '',
                         ], indent=indent['py'], mode='meta');
