@@ -6,7 +6,7 @@
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
 # ZULETZT VERÄNDERT: 1.10.2020                                              #
-# VERSION: 3·1·8                                                            #
+# VERSION: 3·1·7                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -563,7 +563,7 @@ class ____phpytexcompiler:
             ## Former method: Removed---avoid usage of 'exec'!!
             # code = compile('\n'.join(lines), '<string>', mode='exec');
             # exec(code);
-            proc = subprocess.Popen(['python3', fname_rel]);
+            proc = subprocess.Popen(['python3', fname_rel+'.tex']);
             proc.wait();
         except:
             self.ERROR = True;
