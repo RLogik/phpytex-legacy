@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 1.10.2020                                              #
-# VERSION: 3·1·7                                                            #
+# ZULETZT VERÄNDERT: 20.1.2021                                              #
+# VERSION: 3·2·0                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -94,7 +94,7 @@ class phpytexTranspiler(object):
     TOOLONG:            bool             = False;
     # SEED:               int            = numpy.random.get_state()[1][0];
     SEED:               int              = numpy.random.choice(100000000);
-    PRECOMPILELINES:    List[Tuple[int, bool, str]] \
+    PRECOMPILELINES:    List[Tuple[int, Any, str]] \
                                          = [];
     CENSORLENGTH:       int              = 8;
 
@@ -139,7 +139,6 @@ class phpytexTranspiler(object):
             | optionale Flags |
             ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
             -path PFAD            Pfad des lokalen Ordners.
-            -share PFAD           Pfad zum geteilten Ordner (PDF-Output kommt dahin).
             -head DATEI           Datei mit Latex-Kommentar als Kopfteil.
             -insert-bib           Inhalte von .bbl-Datei(en) werden eingesetzt anstelle von \\bibliography{...}.
 
@@ -689,17 +688,17 @@ class phpytexTranspiler(object):
 
     def ____knit(
         self,
-        filecontents                          = [],
-        verbatim: List[Tuple[int, bool, str]] = [],
-        struct                                = [],
-        filename                              = Dict[str, str],
-        anon                                  = False,
-        mute                                  = False,
-        silent                                = False,
-        indent                                = None,
-        params                                = {},
-        dateityp                              = None,
-        chain                                 = []
+        filecontents                         = [],
+        verbatim: List[Tuple[int, Any, str]] = [],
+        struct                               = [],
+        filename                             = Dict[str, str],
+        anon                                 = False,
+        mute                                 = False,
+        silent                               = False,
+        indent                               = None,
+        params                               = {},
+        dateityp                             = None,
+        chain                                = []
     ):
         if self.ERROR:
             return False;
@@ -794,6 +793,7 @@ class phpytexTranspiler(object):
         code_flags = [];
         code_options: Dict[str, Any] = dict();
         code_option_print: bool = False;
+        pre_characters: str = '';
 
         for linenr, line in enumerate(lines):
             if self.ERROR:
@@ -808,6 +808,14 @@ class phpytexTranspiler(object):
                 line = line.rstrip();
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
                 continue;
+
+            # Dokumentart ist tex und Zeile: Kommentar -> entscheide, ob Zeile übersprungen werden soll:
+            m = re.match(r'^\s*(\%+).*', line);
+            if not bool_insidecode and m:
+                n_zeichen = len(m.group(1));
+                if params['no-comm'] or (params['no-comm-auto'] and n_zeichen == 1):
+                    ## <continue: i. e. remove line>
+                    continue;
 
             # Zeile: Quick-Python SET
             m = re.match(r'^\s*\<{3}\s*set\s+(.*)\>{3}', line);
@@ -882,13 +890,15 @@ class phpytexTranspiler(object):
             # 	continue;
 
             # Zeile: Start eines Codeblocks
-            m = re.match(r'^(\s*)(?:\<{3}|\`{3})\s*((?![\<\`]).*\S|)\s*$', line);
-            m_inline = re.match(r'^\s*(?:\<{3}|\`{3}).*(?:\>{3}|\`{3})', line);
-            if m and not m_inline:
+            m = re.match(r'^(\s*)(.*)(?:\<{3}|\`{3})\s*((?![\<\`]).*\S|)\s*$', line);
+            m_bad = re.match(r'^\s*(?:\<{4}|\`{4})', line);
+            m_inline = re.match(r'^\s*(.*)(?:\<{3}|\`{3}).*(?:\>{3}|\`{3})', line);
+            if m and not m_bad and not m_inline:
                 if mute:
                     continue;
                 inline_indentation = m.group(1);
-                code_language, code_flags, code_options = self.____get_code_language_and_options(m.group(2));
+                pre_characters     = m.group(2);
+                code_language, code_flags, code_options = self.____get_code_language_and_options(m.group(3));
                 code_option_print = ('print' in code_options and code_options['print'] is True);
                 bool_insidecode = True;
                 ## Set indentation level. If within print=true set, use previous indentation level:
@@ -901,25 +911,32 @@ class phpytexTranspiler(object):
                     ], mode='direkt');
                 else:
                     self.INDENTATION.initOffset(inline_indentation);
-                    # self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
-                    #     self.INDENTCHARACTER*self.INDENTATION.start + "____set_indentation('{}');".format(inline_indentation),
-                    # ], mode='direkt');
-                self.____addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['<<< '+code_language], mode='direkt');
+                self.____addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['{}<<< {}'.format(pre_characters, code_language)], mode='direkt');
                 continue;
 
             # Zeile: Ende eines Codeblocks
-            m = re.match(r'^\s*(?:\>{3}|\`{3})\s*$', line);
-            if m:
+            m = re.match(r'^\s*(?:\>{3}|\`{3})(.*)$', line);
+            m_bad = re.match(r'^\s*(?:\>{4}|\`{4})', line);
+            m_inline = re.match(r'^\s*(.*)(?:\<{3}|\`{3}).*(?:\>{3}|\`{3})', line);
+            if m and not m_bad and not m_inline:
                 if mute:
                     continue;
+                post_characters = m.group(1);
                 bool_insidecode = False;
                 if code_option_print:
                     self.INDENTATION.last = self.INDENTATION.start;
+                    self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=None, indent=self.INDENTATION.last, expr=[
+                        '''{}<<< ____temp_value____; >>>{}'''.format(pre_characters, post_characters),
+                    ], anon=anon, keep_indent=True, mode='meta');
                     self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
-                        self.INDENTCHARACTER*self.INDENTATION.last + '____print(____temp_value____);',
                         self.INDENTCHARACTER*self.INDENTATION.last + 'del ____temp_value____;',
+                    ], anon=anon, mode='direkt');
+                else:
+                    inline_indentation = self.INDENTCHARACTER*self.INDENTATION.last;
+                    self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
+                        self.INDENTCHARACTER*self.INDENTATION.last + "____set_indentation('{}');".format(inline_indentation),
                     ], mode='direkt');
-                self.____addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['>>>'], mode='direkt');
+                self.____addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['>>>{}'.format(post_characters)], mode='direkt');
                 continue;
 
             # Zeile: Python-Code
@@ -1102,15 +1119,6 @@ class phpytexTranspiler(object):
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
                 continue;
 
-            # Zeile: Kommentar -> entscheide, ob Zeile übersprungen werden soll:
-            m = re.match(r'^\s*(\%+).*', line);
-            if m:
-                n_zeichen = len(m.group(1));
-                if params['no-comm'] or (params['no-comm-auto'] and n_zeichen == 1):
-                    ## <continue: i. e. remove line>
-                    continue;
-                ## otherwise display line...
-
             # Zeile: normaler LaTeX (Kommentare am Ende einer Zeile werden nicht gelöscht)
             # ## indent line by current tex-indentation level:
             # line = self.INDENTCHARACTER*indent['tex'] + line;
@@ -1128,19 +1136,20 @@ class phpytexTranspiler(object):
 
     def ____addpytexline(
         self,
-        lines=[],
-        verbatim: List[Tuple[int, bool, str]] = [],
-        linenr=None,
-        expr=[],
-        verbexpr=None,
-        indent=None,
-        anon=False,
-        mode='direkt',
-        ignore=False
+        lines: List[str]                     = [],
+        verbatim: List[Tuple[int, Any, str]] = [],
+        linenr                               = None,
+        expr: List[str]                      = [],
+        verbexpr                             = None,
+        indent                               = None,
+        keep_indent: bool                    = False,
+        anon: bool                           = False,
+        mode: str                            = 'direkt',
+        ignore: Any                          = False
     ):
         if mode == 'meta':
             for e in expr:
-                lines += self.____metaprint(linenr=linenr, expr=e, indent=indent, anon=anon);
+                lines += self.____metaprint(linenr=linenr, expr=e, indent=indent, keep_indent=keep_indent, anon=anon);
         elif mode == 'none':
             pass;
         else:
@@ -1300,20 +1309,17 @@ class phpytexTranspiler(object):
             meta = meta[4:]
         return meta;
 
-    def ____metaprint(self, indent=None, linenr=None, expr='', anon=False):
+    def ____metaprint(self, indent=None, linenr=None, expr='', keep_indent=False, anon=False):
         if indent is None or indent < self.INDENTCODE:
             indent = self.INDENTCODE;
         expr = self.____metastring(expr);
+        args = dict(keep_indent=keep_indent, anon=anon);
         if anon:
-            line = "____print(eval(____qp("+str(linenr)+", "+expr+"), locals()), keep_indent=False, anon=True);";
+            line = "____print(eval(____qp("+str(linenr)+", "+expr+"), locals()), keep_indent={keep_indent}, anon={anon});".format(**args);
         else:
-            line = "____print(eval(____qp("+str(linenr)+", "+expr+"), locals()), keep_indent=False);";
+            line = "____print(eval(____qp("+str(linenr)+", "+expr+"), locals()), keep_indent={keep_indent});".format(**args);
         lines = [self.INDENTCHARACTER*indent + line];
         return lines;
-
-    def ____countindents(self, s: str, pattern = None):
-        pattern = pattern if isinstance(pattern, str) else self.INDENTCHARACTER_re;
-        return len(re.findall(pattern, s));
 
     def ____censorpath(self, path: str):
         # return '#'*len(path);
