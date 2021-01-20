@@ -32,39 +32,80 @@ import os;
 import re;
 import subprocess;
 
-from typing import Union;
+from types import TracebackType;
 from typing import Dict;
+from typing import List;
+from typing import Tuple;
+from typing import Union;
+from typing import Any;
 import numpy;
 
-class ____phpytexcompiler:
-    ## GLOBALE VARIABLE
-    GLOBALVARS         = {'__ROOT__':'.', '__DIR__':'.'};
-    INCLUDES           = [];
-    CURRDIR            = os.path.abspath('');
-    ROOTDIR            = CURRDIR;
-    INSERTBIB          = False;
-    ERROR              = False;
-    PYERROR            = False;
-    STAMPDATEI         = None;
-    HAUPTDATEI         = None;
-    OUTPUTDATEI        = None;
-    GETEILTERORDNER    = None;
-    LENPRECODE         = 0;
-    LENGTHOFOUTPUT     = 0; ## <-- Anzahl der Zeilen.
-    MAXLENGTH          = 10000; ## verhindere, dass die Datei zu groß wird.
-    TOOLONG            = False;
-    # SEED             = numpy.random.get_state()[1][0];
-    SEED               = numpy.random.choice(100000000);
+class phpytexIndentation(object):
+    pattern: str = r'    ';
+    reference: int = 0;
+    start: int = 1;
+    last: int = 1;
 
-    PRECOMPILELINES    = [];
-    CENSORLENGTH       = 8;
+    def __init__(self, pattern = None):
+        if isinstance(pattern, str):
+            self.pattern = pattern;
+        return;
+
+    def reset(self):
+        self.reference = 0;
+        self.start = 1;
+        self.last  = 1;
+
+    def computeIndentations(self, s: str, pattern = None) -> int:
+        pattern = pattern if isinstance(pattern, str) else self.pattern;
+        return len(re.findall(pattern, s));
+
+    def initOffset(self, s: str):
+        self.reset();
+        self.reference = self.computeIndentations(s);
+
+    def computeOffset(self, s: str):
+        return max(self.computeIndentations(s) - self.reference, 1);
+
+    def setOffset(self, s: str):
+        self.last = self.computeOffset(s);
+
+    def decrOffset(self):
+        self.last = max(self.last - 1, 1);
+
+    def incrOffset(self):
+        self.last = self.last + 1;
+
+class phpytexTranspiler(object):
+    ## GLOBALE VARIABLE
+    GLOBALVARS:         Dict[str, Any]   = {'__ROOT__':'.', '__DIR__':'.'};
+    INCLUDES:           List[str]        = [];
+    CURRDIR:            str              = os.path.abspath('');
+    ROOTDIR:            str              = CURRDIR;
+    INSERTBIB:          bool             = False;
+    ERROR:              bool             = False;
+    PYERROR:            bool             = False;
+    STAMPDATEI:         str;
+    HAUPTDATEI:         str;
+    OUTPUTDATEI:        str;
+    LENPRECODE:         int              = 0;
+    LENGTHOFOUTPUT:     int              = 0; ## <-- Anzahl der Zeilen.
+    MAXLENGTH:          int              = 10000; ## verhindere, dass die Datei zu groß wird.
+    TOOLONG:            bool             = False;
+    # SEED:               int            = numpy.random.get_state()[1][0];
+    SEED:               int              = numpy.random.choice(100000000);
+    PRECOMPILELINES:    List[Tuple[int, bool, str]] \
+                                         = [];
+    CENSORLENGTH:       int              = 8;
 
     ## Hier kann man optional den Defaulttabcharakter bestimmen:
-    INDENTCODE         = 1;
-    INDENTCHARACTER    = '    ';
-    INDENTCHARACTER_re = r'    ';
+    INDENTCODE:         int              = 1;
+    INDENTCHARACTER:    str              = '    ';
+    INDENTCHARACTER_re: str              = r'    ';
+    INDENTATION: phpytexIndentation;
 
     def __init__(self):
+        self.INDENTATION = phpytexIndentation(self.INDENTCHARACTER_re);
         pass;
 
     ## HAUPTVORGANG
@@ -125,23 +166,20 @@ class ____phpytexcompiler:
             self.ROOTDIR = str(params['path']);
             self.GLOBALVARS['__ROOT__'] = self.ROOTDIR;
 
-        self.HAUPTDATEI = self.____extractfilename(path=self.HAUPTDATEI, relative=True);
-        self.OUTPUTDATEI = self.____extractfilename(path=self.OUTPUTDATEI, relative=True, ext='');
+        self.HAUPTDATEI, _, _  = self.____extractfilename(path=self.HAUPTDATEI, relative=True);
+        self.OUTPUTDATEI, _, _ = self.____extractfilename(path=self.OUTPUTDATEI, relative=True, ext='');
         if self.HAUPTDATEI == self.OUTPUTDATEI:
             print('\n\tACHTUNG! Die Namen der py-tex-Datei und Outputdatei dürfen nicht übereinstimmen!\n');
             return;
-        hauptfile = self.____extractfilename(path=self.OUTPUTDATEI, relative=False, ext='tex');
+        hauptfile, _, _ = self.____extractfilename(path=self.OUTPUTDATEI, relative=False, ext='tex');
 
         if 'head' in params:
-            self.STAMPDATEI = params['head'];
-            self.STAMPDATEI = self.____extractfilename(path=self.STAMPDATEI, relative=True);
+            self.STAMPDATEI, _, _ = self.____extractfilename(path=str(params['head']), relative=True);
 
         debug = params['debug'];
         cmpl = not params['no-compile'];
         silent = params['silent'];
         # anon = params['anon']; # <— funktioniert nicht richtig
-        if 'share' in params:
-            self.GETEILTERORDNER = params['share'];
         if 'seed' in params:
             self.SEED = int(params['seed']);
         if 'max-length' in params:
@@ -208,11 +246,8 @@ class ____phpytexcompiler:
         return params;
 
     def ____createmetacode(self, lines=[], fname='', cmpl=False):
-        fname_rel = self.____extractfilename(path=fname, relative=True, ext='');
+        fname_rel, _, _ = self.____extractfilename(path=fname, relative=True, ext='');
         tab = self.INDENTCHARACTER;
-        share_folder = str(None);
-        if not self.GETEILTERORDNER is None:
-            share_folder = "'"+self.GETEILTERORDNER+"'";
         lines_pre = [
             r'''import sys;''',
             r'''import os;''',
@@ -220,14 +255,15 @@ class ____phpytexcompiler:
             r'''import subprocess;''',
             r'''import numpy;''',
             r'''import numpy as np;''',
+            r'''from typing import Any;''',
             r'''''',
             r'''____lines____            = {'post-compile':[], 'anon':[], 'bib':{}};''',
             r'''____len_empty_block____  = 0;''',
             r'''____indent____           = ''' + "'" + self.INDENTCHARACTER_re + "'" + ''';''',
+            r'''____indentation____      = '';''',
             r'''____filetex_name____     = "'''+fname+'''";''',
             r'''____filetex_name_rel____ = "'''+fname_rel+'''";''',
             r'''____filetex____          = None;''',
-            r'''____sharefolder____      = '''+share_folder+''';''',
             r'''____error_toolong____    = False;''',
             r'''____outputlength____     = 0;''',
             r'''____maxlength____        = '''+str(self.MAXLENGTH)+''';''',
@@ -297,6 +333,16 @@ class ____phpytexcompiler:
             tab+tab+r'''__SKIP__ = ____skipclass();''',
             tab+r'''pass;''',
             r'''''',
+            r'''def ____reset_indentation():''',
+            tab+r'''global ____indentation____;''',
+            tab+r'''____indentation____ = '';''',
+            tab+r'''pass;''',
+            r'''''',
+            r'''def ____set_indentation(s: str):''',
+            tab+r'''global ____indentation____;''',
+            tab+r'''____indentation____ = s;''',
+            tab+r'''pass;''',
+            r'''''',
             r'''## expand: quickpython —> prä-eval-Ausdruck''',
             r'''def ____qp(linenr=None, expr='', params={}):''',
             tab+r'''if ____ignore('get'):''',
@@ -341,20 +387,18 @@ class ____phpytexcompiler:
             tab+r'''''',
             tab+r'''return expr;''',
             r'''''',
-            r'''## record+print-to-latex''',
-            r'''def ____print(s, anon=False):''',
+            r'''## record + print-to-latex''',
+            r'''def ____print(s: Any, keep_indent=True, anon=False):''',
             tab+r'''if ____ignore('get'):''',
             tab+tab+r'''return;''',
             tab+r'''''',
-            tab+r'''global ____filetex____;''',
-            tab+r'''global ____lines____;''',
             tab+r'''global ____len_empty_block____;''',
             tab+r'''global ____error_eval____;''',
             tab+r'''global ____error_toolong____;''',
             tab+r'''global ____outputlength____;''',
-            tab+r'''global ____maxlength____;''',
             tab+r'''''',
             tab+r'''## reduces blocks of empty lines to single empty lines:''',
+            tab+r'''s = str(s);''',
             tab+r'''____len_empty_block____ = (____len_empty_block____ + 1) if re.match(r'^\s*$', s) else 0;''',
             tab+r'''if ____len_empty_block____ > 1:''',
             tab+tab+r'''return;''',
@@ -366,23 +410,24 @@ class ____phpytexcompiler:
             tab+r'''if ____outputlength____ > ____maxlength____:''',
             tab+tab+r'''____error_toolong____ = True;''',
             tab+r'''''',
-            tab+r'''print(s, file=____filetex____);''',
-            tab+r'''____lines____['post-compile'].append(s);''',
-            tab+r'''if anon:''',
-            tab+tab+r'''n = len(____lines____['post-compile']);''',
-            tab+tab+r'''____lines____['anon'].append(n-1);''',
-            tab+r'''return;''',
+            tab+r'''____forceprint(s, keep_indent=keep_indent, anon=anon);''',
+            tab+r'''pass;''',
             r'''''',
-            r'''def ____forceprint(s, anon=False):''',
+            r'''def ____forceprint(s: str, keep_indent=True, anon=False):''',
             tab+r'''global ____filetex____;''',
             tab+r'''global ____lines____;''',
             tab+r'''''',
-            tab+r'''print(s, file=____filetex____);''',
-            tab+r'''____lines____['post-compile'].append(s);''',
-            tab+r'''if anon:''',
-            tab+tab+r'''n = len(____lines____['post-compile']);''',
-            tab+tab+r'''____lines____['anon'].append(n-1);''',
-            tab+r'''return;''',
+            tab+r'''n = len(____lines____['post-compile']);''',
+            tab+r'''for _s in re.split(r'\n', s):''',
+            tab+tab+r'''if keep_indent:''',
+            tab+tab+tab+r'''_s = ____indentation____ + _s;''',
+            tab+tab+r'''print(_s, file=____filetex____);''',
+            tab+tab+r'''____lines____['post-compile'].append(_s);''',
+            tab+tab+r'''if anon:''',
+            tab+tab+tab+r'''____lines____['anon'].append(n);''',
+            tab+tab+r'''n += 1;''',
+            tab+r'''''',
+            tab+r'''pass;''',
             r'''''',
             r'''def ____insertbib(fname='', src='', indent='', anon=False):''',
             tab+r'''global ____filetex____;''',
@@ -401,12 +446,11 @@ class ____phpytexcompiler:
             tab+tab+r'''____lines____['anon'].append(n-1);''',
             tab+r'''elif ____insertbib____:''',
             tab+tab+r'''____lines____['bib'][src].append(n-1);''',
-            tab+r'''return;''',
+            tab+r'''pass;''',
             r'''''',
             r'''## PDFLATEX:''',
             r'''def ____compilelatex():''',
             tab+r'''global ____rootdir____;''',
-            tab+r'''global ____sharefolder____;''',
             tab+r'''global ____filetex_name____;''',
             tab+r'''global ____filetex_name_rel____;''',
             tab+r'''global ____lines____;''',
@@ -421,14 +465,7 @@ class ____phpytexcompiler:
             tab+tab+r'''proc = subprocess.Popen(['bibtex', src], cwd=____rootdir____);''',
             tab+tab+r'''proc.wait();''',
             tab+r'''print('\n\nDOKUMENT {'+____filetex_name_rel____+'.pdf} WURDE FERTIGGESTELLT.');''',
-            tab+r'''if ____sharefolder____ is None:''',
-            tab+tab+r'''return;''',
-            tab+r'''print('\nOUTPUT WIRD IN GETEILTEN ORDNER VERLEGT.');''',
-            tab+r'''_, nom = os.path.split(____filetex_name_rel____)''',
-            tab+r'''print('\tzum "'+____sharefolder____+'/'+nom+'.pdf" kopieren...');''',
-            tab+r'''os.system('cp "'+outfile+'.pdf" "'+____sharefolder____+'/'+nom+'.pdf"');''',
-            tab+r'''print('\t... kopieren erfolgreich.');''',
-            tab+r'''return;''',
+            tab+r'''pass;''',
             r'''''',
             r'''## ERSETZUNG VON \bibliography-Befehlen durch Inhalte + Anonymisierung:''',
             r'''def ____cleanlatex():''',
@@ -488,7 +525,7 @@ class ____phpytexcompiler:
             tab+tab+r'''pass;''',
             tab+r'''''',
             tab+r'''____filetex____.close();''',
-            tab+r'''return;''',
+            tab+r'''pass;''',
             r'''''',
             r'''def ____compilephpytex():''',
             tab+r'''global ____filetex____;''',
@@ -507,7 +544,8 @@ class ____phpytexcompiler:
         ];
         self.LENPRECODE = len(lines_pre);
         lines = lines_pre + lines + [
-            tab+r'''return;''',
+            tab+r'''____reset_indentation();''',
+            tab+r'''pass;''',
             r'''''',
             r'''try:''',
             tab+r'''____filetex____ = open(____filetex_name____, 'w+');''',
@@ -549,7 +587,7 @@ class ____phpytexcompiler:
 
     def ____execmetacode(self, lines=[], fname='', debug=False, cmpl=False):
         lines = self.____createmetacode(lines=lines, fname=fname, cmpl=cmpl);
-        fname_rel = self.____extractfilename(path=fname, relative=True, ext='');
+        fname_rel, _, _ = self.____extractfilename(path=fname, relative=True, ext='');
         ____filetex____ = open(fname, 'w+');
         ____filetex____.write('\n'.join(lines));
         ____filetex____.close();
@@ -571,12 +609,12 @@ class ____phpytexcompiler:
             typ, err, tb = sys.exc_info();
 
             try:
-                n = err.lineno - 1;
+                n = tb.tb_lineno - 1 if isinstance(err, TracebackType) else 0;
                 line_err = lines[n];
                 n -= self.LENPRECODE;
                 linenr = -1; ## globale Zeilennummer
                 precompilelines = [];
-                __LINENR__ = '???';
+                __LINENR__ = -1;
                 __FNAME__ = '???';
                 for k, ignore, line in self.PRECOMPILELINES:
                     if ignore is True:
@@ -588,7 +626,7 @@ class ____phpytexcompiler:
                         linenr += 1;
                     precompilelines.append((linenr, ignore, line));
                     if linenr >= n:
-                        __LINENR__ = k; ## lokale Zeilennummer innerhalb Datei
+                        __LINENR__ = int(k); ## lokale Zeilennummer innerhalb Datei
                         break;
                     continue;
 
@@ -649,58 +687,67 @@ class ____phpytexcompiler:
 
         return lines, erfolg;
 
-    def ____knit(self, root=None, filecontents=[], verbatim=[], struct=[], filename={}, anon=False, mute=False, silent=False, indent=None, params={}, dateityp=None, chain=[]):
+    def ____knit(
+        self,
+        filecontents                          = [],
+        verbatim: List[Tuple[int, bool, str]] = [],
+        struct                                = [],
+        filename                              = Dict[str, str],
+        anon                                  = False,
+        mute                                  = False,
+        silent                                = False,
+        indent                                = None,
+        params                                = {},
+        dateityp                              = None,
+        chain                                 = []
+    ):
         if self.ERROR:
             return False;
-
-        if root is None:
-            root = self.ROOTDIR;
         if dateityp is None:
             dateityp = 'tex';
         if indent is None:
-            indent = {'py':self.INDENTCODE, 'tex':0, 'struct':0};
+            indent = dict(tex=0, struct=0);
 
         ## Bestimme Dateiquelle und neuen Root:
-        bool_getfile = True;
-        fname_src = filename['src'];
-        fname_main = filename['main'];
+        root         = self.ROOTDIR;
+        fname_src    = filename['src'];
+        fname_main   = filename['main'];
+        fname_curr   = fname_src;
+        bool_getfile = False;
+        src          = fname_src;
+        lines        = [];
         if dateityp in ['head', 'tex', 'py']:
             if dateityp in ['head', 'tex']:
                 _, ext = os.path.splitext(fname_src);
                 if ext == '':
                     fname_src += '.tex';
-            nom, root, _ = self.____extractfilename(path=fname_src, root=root, split=True);
-            src = nom;
-        else:
-            bool_getfile = False;
+            src, root, _ = self.____extractfilename(path=fname_src, root=self.ROOTDIR, relative=True, split=True);
+            fname_curr = src;
+            ## Prüfe, ob Dateiquelle existiert:
+            if not(src in chain):
+                try:
+                    with open(src, 'r') as fp:
+                        lines = fp.readlines();
+                    bool_getfile = True;
+                except:
+                    pass;
 
-        fname_curr = nom;
+        ## Anonymise file name:
         if anon:
-            nom = self.____censorpath(path=nom);
+            fname_curr = self.____censorpath(path=fname_curr);
 
         ## Prüfe, ob Datei schon inkludiert wurde (entlang aktueller input-Kette):
         if src in chain:
-            print('    '*(indent['struct']+1)+'— [∞] '+nom+'; (∞-Schleife! Datei wird nicht hinzugefügt!)');
-            struct.append('%%'+'    '*(indent['struct']+1)+'— [∞] '+nom+'; (∞-Schleife! Datei wird nicht hinzugefügt!)');
+            print('    '*(indent['struct']+1)+'— [∞] '+fname_curr+'; (∞-Schleife! Datei wird nicht hinzugefügt!)');
+            struct.append('%%'+'    '*(indent['struct']+1)+'— [∞] '+fname_curr+'; (∞-Schleife! Datei wird nicht hinzugefügt!)');
             return True;
-        else:
-            chain.append(src);
 
-        ## Prüfe, ob Dateiquelle existiert:
-        if bool_getfile:
-            bool_getfile = os.path.isfile(src);
-        ## Versuche Dateiquelle zu öffnen:
-        if bool_getfile:
-            try:
-                fp = open(src, 'r');
-            except:
-                bool_getfile = False;
         ## Falls Dateiquelle nicht existiert oder sich nicht öffnen lässt:
         if not bool_getfile:
             self.ERROR = True;
             if not dateityp == 'head':
-                print('    '*(indent['struct']+1)+'— [x] '+nom+';');
-                struct.append('%%'+'    '*(indent['struct']+1)+'— [x] '+nom+';');
+                print('    '*(indent['struct']+1)+'— [x] '+fname_curr+';');
+                struct.append('%%'+'    '*(indent['struct']+1)+'— [x] '+fname_curr+';');
             print("----------------------------------------------------------------");
             print("!!! (PH(p)y)TeX Kompilationsfehler !!!");
             print("!!! Folgende Datei existiert nicht / ließ sich nicht öffnen:");
@@ -710,14 +757,15 @@ class ____phpytexcompiler:
             return False;
 
         ## Berechne relative Pfade:
-        backtoorigin = self.____extractfilename(path='.', root=self.ROOTDIR, relative=True, relative_to=root);
-        origintohere = self.____extractfilename(path='.', root=root, relative=True, relative_to=self.ROOTDIR);
-        self.GLOBALVARS['__ROOT__'] = backtoorigin;
+        heretoorigin, _, _ = self.____extractfilename(path='.', root=self.ROOTDIR, relative=True, relative_to=root);
+        origintohere, _, _ = self.____extractfilename(path='.', root=root,         relative=True, relative_to=self.ROOTDIR);
+        origintoorigin = '.'; # os.path.normpath(os.path.join(origintohere, heretoorigin));
+        self.GLOBALVARS['__ROOT__'] = heretoorigin;
         self.GLOBALVARS['__DIR__'] = '.';
         orientation = [];
-        orientation += self.____postcompile(key='__ROOT__', val=origintohere+'/'+backtoorigin, symbolic=False);
-        orientation += self.____postcompile(key='__DIR__', val=origintohere, symbolic=False);
-        orientation += self.____postcompile(key='__FNAME__', val=src, symbolic=False);
+        orientation += self.____postcompile(key='__ROOT__',  val=origintoorigin, symbolic=False);
+        orientation += self.____postcompile(key='__DIR__',   val=origintohere,   symbolic=False);
+        orientation += self.____postcompile(key='__FNAME__', val=src,            symbolic=False);
         self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=orientation, mode='direkt');
         lines_ = self.____postcompile(key='__LINENR__', val=None, symbolic=False);
         self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=lines_, mode='direkt');
@@ -727,25 +775,25 @@ class ____phpytexcompiler:
 
         ## Output für Hauptdatei:
         if not mute:
-            print('    '*(indent['struct']+1)+'— '+nom+';');
-            struct.append('%%'+'    '*(indent['struct']+1)+'— '+nom+';');
+            print('    '*(indent['struct'] + 1)+'— '+fname_curr+';');
+            struct.append('%%'+'    '*(indent['struct'] + 1)+'— '+fname_curr+';');
             if not silent:
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, expr=[
                     '',
                     '%% ********************************************************************************',
-                    '%% FILE: {name}'.format(name=nom),
+                    '%% FILE: {name}'.format(name=fname_curr),
                     '%% ********************************************************************************',
                     '',
-                ], indent=indent['py'], mode='meta');
+                ], indent=self.INDENTATION.last, mode='meta');
 
         ## Zeilen einlesen und interpretieren:
-        lines = fp.readlines();
-        fp.close();
         erfolg = True;
         chain_ = chain[::];
         bool_insidecode = False;
         code_language = '';
-        indent_code_offset = 0;
+        code_flags = [];
+        code_options: Dict[str, Any] = dict();
+        code_option_print: bool = False;
 
         for linenr, line in enumerate(lines):
             if self.ERROR:
@@ -757,7 +805,7 @@ class ____phpytexcompiler:
             # Dokumentart ist Python:
             if dateityp == 'py':
                 line = self.INDENTCHARACTER*self.INDENTCODE + line;
-                line = re.sub(r'\s+$', '', line);
+                line = line.rstrip();
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
                 continue;
 
@@ -773,8 +821,10 @@ class ____phpytexcompiler:
                 nom = m.group(1);
                 val = m.group(2);
                 val = re.sub(r'^[\s]+|[\s\;]+$', '', val);
-                lines_ = self.____postcompile(key=nom, val=val, indent=indent['py'], symbolic=True, set_precompile=True);
-                self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=lines_, verbexpr=['<<< set '+re.sub(r'^\s+', '', e)+'; >>>' for e in line], mode='direkt');
+                lines_ = self.____postcompile(key=nom, val=val, indent=self.INDENTATION.last, symbolic=True, set_precompile=True);
+                self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=lines_, verbexpr=[
+                    '<<< set {}; >>>'.format(e.lstrip()) for e in line
+                ], mode='direkt');
                 continue;
 
             # Zeile: Quick-Python ESCAPE_ONCE
@@ -782,11 +832,10 @@ class ____phpytexcompiler:
             if not bool_insidecode and m:
                 if mute:
                     continue;
-                line = self.INDENTCHARACTER*indent['py'] + "pass;";
-                self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], verbexpr=['<<< esape_once; >>>'], mode='direkt');
-                indent['py'] -= 1;
-                if indent['py'] < self.INDENTCODE:
-                    indent['py'] = self.INDENTCODE;
+                self.INDENTATION.decrOffset();
+                self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[
+                    self.INDENTCHARACTER*self.INDENTATION.last + "pass;",
+                ], verbexpr=['<<< esape_once; >>>'], mode='direkt');
                 continue;
 
             # Zeile: Quick-Python ESCAPE
@@ -794,9 +843,10 @@ class ____phpytexcompiler:
             if not bool_insidecode and m:
                 if mute:
                     continue;
-                line = self.INDENTCHARACTER*indent['py'] + "pass;";
-                self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], verbexpr=['<<< escape; >>>'], mode='direkt');
-                indent['py'] = self.INDENTCODE;
+                self.INDENTATION.reset();
+                self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[
+                    self.INDENTCHARACTER*self.INDENTATION.last + "pass;",
+                ], verbexpr=['<<< escape; >>>'], mode='direkt');
                 continue;
 
             # Zeile: Quick-Python IGNORE
@@ -804,10 +854,10 @@ class ____phpytexcompiler:
             if not bool_insidecode and m:
                 if mute:
                     continue;
+                self.INDENTATION.reset();
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[
-                    self.INDENTCHARACTER*indent['py'] + r"____ignore('set', True);",
+                    self.INDENTCHARACTER*self.INDENTATION.last + r"____ignore('set', True);",
                 ], verbexpr=['<<< ignore; >>>'], mode='direkt');
-                indent['py'] = self.INDENTCODE;
                 continue;
 
             # Zeile: Quick-Python UNIGNORE
@@ -815,10 +865,10 @@ class ____phpytexcompiler:
             if not bool_insidecode and m:
                 if mute:
                     continue;
+                self.INDENTATION.reset()
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[
-                    self.INDENTCHARACTER*indent['py'] + r"____ignore('set', False);",
+                    self.INDENTCHARACTER*self.INDENTATION.last + r"____ignore('set', False);",
                 ], verbexpr=['<<< unignore; >>>'], mode='direkt');
-                indent['py'] = self.INDENTCODE;
                 continue;
 
             #  --- unter Arbeit (Problem mit der Indentation-Logik) --- #
@@ -827,7 +877,7 @@ class ____phpytexcompiler:
             # m = re.match(r'^\s*(?:\<{3}|\`{3})\s*((?![\<\`]).*\:)\s*(?:\>{3}|\`{3}).*$', line);
             # if not bool_insidecode and m:
             # 	self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[
-            # 		self.INDENTCHARACTER*indent['py'] + m.group(1)
+            # 		self.INDENTCHARACTER*self.INDENTATION.last + m.group(1)
             # 	], mode='direkt');
             # 	continue;
 
@@ -837,9 +887,23 @@ class ____phpytexcompiler:
             if m and not m_inline:
                 if mute:
                     continue;
-                indent_code_offset = self.____countindents(m.group(1));
-                code_language = m.group(2);
+                inline_indentation = m.group(1);
+                code_language, code_flags, code_options = self.____get_code_language_and_options(m.group(2));
+                code_option_print = ('print' in code_options and code_options['print'] is True);
                 bool_insidecode = True;
+                ## Set indentation level. If within print=true set, use previous indentation level:
+                if code_option_print:
+                    self.INDENTATION.reference = self.INDENTATION.computeIndentations(inline_indentation) - self.INDENTATION.last;
+                    self.INDENTATION.start = self.INDENTATION.last;
+                    self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
+                        self.INDENTCHARACTER*self.INDENTATION.last + "____set_indentation('{}');".format(inline_indentation),
+                        self.INDENTCHARACTER*self.INDENTATION.last + '____temp_value____ = \\',
+                    ], mode='direkt');
+                else:
+                    self.INDENTATION.initOffset(inline_indentation);
+                    # self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
+                    #     self.INDENTCHARACTER*self.INDENTATION.start + "____set_indentation('{}');".format(inline_indentation),
+                    # ], mode='direkt');
                 self.____addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['<<< '+code_language], mode='direkt');
                 continue;
 
@@ -848,8 +912,13 @@ class ____phpytexcompiler:
             if m:
                 if mute:
                     continue;
-                indent_code_offset = 0;
                 bool_insidecode = False;
+                if code_option_print:
+                    self.INDENTATION.last = self.INDENTATION.start;
+                    self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
+                        self.INDENTCHARACTER*self.INDENTATION.last + '____print(____temp_value____);',
+                        self.INDENTCHARACTER*self.INDENTATION.last + 'del ____temp_value____;',
+                    ], mode='direkt');
                 self.____addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['>>>'], mode='direkt');
                 continue;
 
@@ -859,34 +928,32 @@ class ____phpytexcompiler:
                     continue;
                 # Einrückung berechnen:
                 m = re.match(r'^(\s*)(.*)$', line);
-                len_indent = self.____countindents(m.group(1)) - indent_code_offset
-                if len_indent < self.INDENTCODE:
-                    len_indent = self.INDENTCODE;
-                line = self.INDENTCHARACTER*len_indent + m.group(2);
+                indent_last = self.INDENTATION.computeOffset(m.group(1));
+                line = self.INDENTCHARACTER*indent_last + m.group(2);
 
                 # Zeile: Python-Kommentar aber mit evtl. falschem Zeichen (LaTeX, Javascript, etc.).
                 m = re.match(r'^\s*(?:\#|\%|\/\/)(.*)$', line);
                 if m:
-                    line = self.INDENTCHARACTER*len_indent + '#'+m.group(1);
+                    line = self.INDENTCHARACTER*indent_last + '#'+m.group(1);
                     self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
                     continue;
 
                 # wenn nicht leer od. Kommentarzeile, dann python-Indent updaten.
-                indent['py'] = len_indent;
+                self.INDENTATION.last = indent_last;
 
                 # Zeile: ignore / unignore.
                 m = re.match(r'^\s*(ignore|unignore)(?:\;|$|\s*\#.*)', line);
                 if m:
                     control = m.group(1);
                     self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[
-                        self.INDENTCHARACTER*indent['py'] + r"____ignore('set', "+str(control == 'ignore')+r");",
+                        self.INDENTCHARACTER*self.INDENTATION.last + r"____ignore('set', "+str(control == 'ignore')+r");",
                     ], mode='direkt');
                     continue;
 
                 # Zeile: Kopf eines Indent-Blocks
                 m = re.match(r'^\s*.*:(?:\s*\#.*|\s*)$', line);
                 if m:
-                    indent['py'] += 1;
+                    self.INDENTATION.incrOffset();
                     self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
                     continue;
 
@@ -905,7 +972,6 @@ class ____phpytexcompiler:
                 typ = m.group(2);
                 nom = m.group(3);
                 nom = re.sub(r'^[\s]+|[\s\;]+$', '', nom);
-                nom_init = nom;
                 nom_sub, is_bad = self.____expandquickpython(expr=nom);
 
                 if is_bad:
@@ -921,7 +987,7 @@ class ____phpytexcompiler:
                     print("----------------------------------------------------------------");
                     continue;
 
-                nom = self.____extractfilename(path=nom_sub, root=root, relative=False);
+                nom, _, _ = self.____extractfilename(path=nom_sub, root=root, relative=False);
                 _, ext = os.path.splitext(nom);
                 if ext == '':
                     nom += '.tex';
@@ -937,7 +1003,7 @@ class ____phpytexcompiler:
                     anon_ = True;
 
                 ## nested Call für neue Dateiquelle:
-                nom  = self.____extractfilename(path=nom_sub, root=root);
+                nom, _, _  = self.____extractfilename(path=nom_sub, root=root);
                 _, ext = os.path.splitext(nom);
                 if ext == '':
                     nom += '.tex';
@@ -951,17 +1017,17 @@ class ____phpytexcompiler:
                 filename_['src'] = nom;
                 indent_ = {};
                 for key in indent:
-                    val = self.INDENTCODE;
                     if (key == 'tex' and ext == 'tex') or key == 'struct':
-                        val = indent[key] + 1;
-                    indent_[key] = val;
+                        indent_[key] = indent[key] + 1;
+                    else:
+                        indent_[key] = self.INDENTCODE;
 
                 print('    '*(indent_['struct']+1)+'|');
                 struct.append('%%'+'    '*(indent_['struct']+1)+'|');
                 erfolg_ = self.____knit(filecontents=filecontents, verbatim=verbatim, struct=struct, filename=filename_, anon=anon_, mute=mute, silent=silent, indent=indent_, params=params, dateityp=ext, chain=chain_[::]);
                 erfolg = erfolg and erfolg_;
 
-                self.GLOBALVARS['__ROOT__'] = backtoorigin;
+                self.GLOBALVARS['__ROOT__'] = heretoorigin;
                 self.GLOBALVARS['__DIR__'] = '.';
                 self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, linenr=linenr, expr=orientation, mode='direkt');
                 lines_ = self.____postcompile(key='__LINENR__', val=linenr, symbolic=False);
@@ -992,7 +1058,7 @@ class ____phpytexcompiler:
                     print("----------------------------------------------------------------");
                     continue;
 
-                nom  = self.____extractfilename(path=nom_sub, root=root, relative=False, ext='bib');
+                nom, _, _  = self.____extractfilename(path=nom_sub, root=root, relative=False, ext='bib');
 
                 ## prüfe, ob Datei schon inkludiert wurde:
                 if re.search(r'once', typ) and nom in self.INCLUDES:
@@ -1005,9 +1071,9 @@ class ____phpytexcompiler:
                     anon_ = True;
 
                 ## nested Call für neue Dateiquelle:
-                nom  = self.____extractfilename(path=nom_sub, root=root, ext='bib');
+                nom, _, _  = self.____extractfilename(path=nom_sub, root=root, ext='bib');
                 # nom, root, fname = self.____extractfilename(path=fname_src, root=root, split=True, ext='bib');
-                src = self.____extractfilename(path=fname_main, ext='bbl');
+                src, _, _ = self.____extractfilename(path=fname_main, ext='bbl');
                 indent_ = {};
                 for key in indent:
                     val = self.INDENTCODE;
@@ -1015,7 +1081,7 @@ class ____phpytexcompiler:
                         val = indent[key] + 1;
                     indent_[key] = val;
 
-                line = self.INDENTCHARACTER*indent['py'] + '''____insertbib(fname="'''+nom+'''", src="'''+src+'''", indent="'''+tex_indent+'''", anon='''+str(anon_)+''')''';
+                line = self.INDENTCHARACTER*self.INDENTATION.last + '''____insertbib(fname="'''+nom+'''", src="'''+src+'''", indent="'''+tex_indent+'''", anon='''+str(anon_)+''')''';
 
                 if not mute:
                     if anon:
@@ -1031,7 +1097,7 @@ class ____phpytexcompiler:
                             '%% FILE: {name}'.format(name=nom),
                             '%% ********************************************************************************',
                             '',
-                        ], indent=indent['py'], mode='meta');
+                        ], indent=self.INDENTATION.last, mode='meta');
 
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
                 continue;
@@ -1052,7 +1118,7 @@ class ____phpytexcompiler:
             # if m:
             #     line = m.group(1).rstrip();
 
-            self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, indent=indent['py'], expr=[line], anon=anon, mode='meta');
+            self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, indent=self.INDENTATION.last, expr=[line], anon=anon, mode='meta');
             continue;
 
         self.____addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
@@ -1060,7 +1126,18 @@ class ____phpytexcompiler:
         ], mode='direkt');
         return erfolg;
 
-    def ____addpytexline(self, lines=[], verbatim=[], linenr=None, expr=[], verbexpr=None, indent=None, anon=False, mode='direkt', ignore=False):
+    def ____addpytexline(
+        self,
+        lines=[],
+        verbatim: List[Tuple[int, bool, str]] = [],
+        linenr=None,
+        expr=[],
+        verbexpr=None,
+        indent=None,
+        anon=False,
+        mode='direkt',
+        ignore=False
+    ):
         if mode == 'meta':
             for e in expr:
                 lines += self.____metaprint(linenr=linenr, expr=e, indent=indent, anon=anon);
@@ -1068,64 +1145,52 @@ class ____phpytexcompiler:
             pass;
         else:
             lines += expr;
-        if verbexpr is None:
-            verbatim += [(linenr, ignore, line) for line in expr];
-        else:
+        if isinstance(verbexpr, list):
             verbatim += [(linenr, ignore, line) for line in verbexpr];
+        else:
+            verbatim += [(linenr, ignore, line) for line in expr];
         return;
 
-    def ____extractfilename(self, path=None, root=None, split=False, relative=None, relative_to=None, ext=None):
-        if path is None:
-            return None;
-
-        if root is None:
+    def ____extractfilename(self, path: str, root=None, split=False, relative=None, relative_to=None, ext=None) -> Tuple[str, str, str]:
+        if not isinstance(root, str):
             root = self.ROOTDIR;
 
         root = os.path.abspath(os.path.normpath(root));
         if re.match(r'\:|^[\/\\]', path):
-            if relative is None:
-                relative = False;
+            relative = relative if isinstance(relative, bool) else False;
             path = os.path.abspath(os.path.normpath(path));
-
         else:
-            if relative is None:
-                relative = True;
-            path = '/'.join([root, path]);
+            relative = relative if isinstance(relative, bool) else True;
+            path = os.path.join(root, path);
             path = os.path.abspath(os.path.normpath(path));
 
         if relative:
-            root = relative_to;
-            if root is None:
-                root = self.ROOTDIR;
+            root = relative_to if isinstance(relative_to, str) else self.ROOTDIR;
             root = os.path.abspath(os.path.normpath(root));
-            root = re.split(r'/+', re.sub('^/+', '', root));
-            path = re.split(r'/+', re.sub('^/+', '', path));
-            back = len(root);
-            while len(root) > 0 and len(path) > 0:
-                if root[0] == path[0]:
+            root_parts = re.split(r'/+', re.sub('^/+', '', root));
+            path_parts = re.split(r'/+', re.sub('^/+', '', path));
+            back = len(root_parts);
+            while len(root_parts) > 0 and len(path_parts) > 0:
+                if root_parts[0] == path_parts[0]:
                     back -= 1;
-                    root = root[1:];
-                    path = path[1:];
+                    root_parts = root_parts[1:];
+                    path_parts = path_parts[1:];
                     continue;
                 break;
-            path = '/'.join(['.'] + ['..']*back + path);
+            path = os.path.join(*(['.'] + ['..']*back + path_parts));
+
+        if isinstance(ext, str):
+            path, _ = os.path.splitext(path);
+            if not ext == '':
+                path = path + '.' + ext;
 
         if split:
             root, fname = os.path.split(path);
-        else:
-            fname = path;
-
-        if not ext is None:
-            fname, _ = os.path.splitext(fname);
-            if not ext == '':
-                fname = fname + '.' + ext;
-
-        if split:
-            path = os.path.normpath('/'.join([root,fname]));
+            path = os.path.normpath('/'.join([root, fname]));
             return path, root, fname;
-        return fname;
+        return path, '', '';
 
-    def ____expandquickpython(self, expr='', no_latex=True, evaluate=True):
+    def ____expandquickpython(self, expr='', contains_latex=False, evaluate=True):
         # re_meta = r'(\<{3}(?:(?![<>]).)*\>{3})'; # <— problematisch!
         re_meta = r'(\<{3}(?![\<|\`])(?:(?!(?:\<{3}|\>{3})).)*\>{3})';
         is_bad = False;
@@ -1143,20 +1208,22 @@ class ____phpytexcompiler:
                     if u == '':
                         continue;
                     if u in self.GLOBALVARS:
+                        ## Wert substituieren:
                         u = self.GLOBALVARS[u];
                         if isinstance(u, str):
-                            u = self.____escapecharacters(u);
+                            meta += self.____escapecharacters(u);
                         else:
-                            u = str(u);
-                    meta += u;
+                            meta += str(u);
+                    else:
+                        meta += u;
                 else:
                     meta += u;
             expr = meta;
 
-        if no_latex:
+        if not contains_latex:
             ## Bad <--- LaTeX Macros drin enthalten:
             ## (erkennbar als ungerade Anzahl an \'s hintereinander irgendwo im String)
-            for u in enumerate(re.split(r'(\\+)', meta)):
+            for u in enumerate(re.split(r'(\\+)', expr)):
                 if len(u) % 2 == 1:
                     is_bad = True;
                     break;
@@ -1165,11 +1232,10 @@ class ____phpytexcompiler:
             ## Bad <--- ex. eine im pre-compile unauflösbare Variable.
             try:
                 meta = eval(expr, self.GLOBALVARS);
+                if evaluate:
+                    expr = meta;
             except:
                 is_bad = True;
-
-        if evaluate:
-            expr = meta;
 
         return expr, is_bad;
 
@@ -1195,7 +1261,7 @@ class ____phpytexcompiler:
             self.GLOBALVARS[key] = val;
 
         if is_bad:
-            val = "eval('"+val+"')";
+            val = "eval('" + str(val) + "')";
         elif isinstance(val, str):
             val = "'" + self.____escapecharacters(val) + "'";
         else:
@@ -1239,20 +1305,76 @@ class ____phpytexcompiler:
             indent = self.INDENTCODE;
         expr = self.____metastring(expr);
         if anon:
-            line = "____print(eval(____qp("+str(linenr)+", "+expr+"), locals()), anon=True);";
+            line = "____print(eval(____qp("+str(linenr)+", "+expr+"), locals()), keep_indent=False, anon=True);";
         else:
-            line = "____print(eval(____qp("+str(linenr)+", "+expr+"), locals()));";
+            line = "____print(eval(____qp("+str(linenr)+", "+expr+"), locals()), keep_indent=False);";
         lines = [self.INDENTCHARACTER*indent + line];
         return lines;
 
-    def ____countindents(self, s: str):
-        return len(re.findall(self.INDENTCHARACTER_re, s));
+    def ____countindents(self, s: str, pattern = None):
+        pattern = pattern if isinstance(pattern, str) else self.INDENTCHARACTER_re;
+        return len(re.findall(pattern, s));
 
     def ____censorpath(self, path: str):
         # return '#'*len(path);
         return '#'*self.CENSORLENGTH;
 
+    def ____get_inline_arguments(self, s: str) -> Tuple[List[str], Dict[str, Any]]:
+        letters      = [_ for _ in s];
+        i            = 0;
+        slashes      = False;
+        inside_quote = False
+        open_quote   = '';
+        parts        = [];
+        for j, u in enumerate(letters):
+            if re.match(r'\\', u):
+                slashes = True;
+            elif re.match(r'[\"\']', u):
+                if not slashes:
+                    if inside_quote:
+                        if u == open_quote:
+                            inside_quote = False;
+                    else:
+                        inside_quote = True;
+                        open_quote = u;
+                slashes = False;
+            elif not inside_quote and re.match(r'[\s\,]', u):
+                parts.append(s[i:j].strip());
+                slashes = False;
+                inside_quote = False;
+                open_quote = '';
+                i = j;
+        parts.append(s[i:].strip());
+
+        flags = [];
+        parameters: Dict[str, Any] = dict();
+        for part in parts:
+            if re.match(r'^\s*$', part):
+                continue;
+            m = re.match(r'([\w\_\-]+)=(.*)', part);
+            if not m:
+                flags.append(part);
+            else:
+                key = m.group(1).strip();
+                value = m.group(2).strip();
+                if value == '':
+                    parameters[key] = None;
+                elif re.match('^true$', value, re.IGNORECASE):
+                    parameters[key] = True;
+                elif re.match('^false$', value, re.IGNORECASE):
+                    parameters[key] = False;
+                else:
+                    try:
+                        parameters[key] = eval(value);
+                    except:
+                        parameters[key] = value;
+        return flags, parameters;
+
+    def ____get_code_language_and_options(self, s: str) -> Tuple[str, List[str], Dict[str, Any]]:
+        flags, parameters = self.____get_inline_arguments(s);
+        language = flags[0] if len(flags) > 0 else '';
+        return language, flags[1:], parameters;
     pass;
 
 
-____phpytexcompiler().run();
+phpytexTranspiler().run();
