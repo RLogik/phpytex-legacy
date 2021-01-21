@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 20.1.2021                                              #
-# VERSION: 3·2·0                                                            #
+# ZULETZT VERÄNDERT: 21.1.2021                                              #
+# VERSION: 3·2·1                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -39,6 +39,24 @@ from typing import Tuple;
 from typing import Union;
 from typing import Any;
 import numpy;
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# MAIN METHOD
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def main():
+    phpytexTranspiler().run();
+    return;
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SECONDARY METHODS
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# CLASS phpytexIndentation
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class phpytexIndentation(object):
     pattern: str = r'    ';
@@ -75,6 +93,10 @@ class phpytexIndentation(object):
 
     def incrOffset(self):
         self.last = self.last + 1;
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# CLASS phpytexTranspiler
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class phpytexTranspiler(object):
     ## GLOBALE VARIABLE
@@ -113,50 +135,53 @@ class phpytexTranspiler(object):
         params = self.____getarguments(sys.argv);
 
         if params['man'] or params['usage'] or params['guide']:
-            print(r'''Siehe https://github.com/RLogik/phpytex/blob/master/README.md''');
+            display_message(r'''Siehe https://github.com/RLogik/phpytex/blob/master/README.md''');
             return;
 
         if params['help'] or not 'i' in params or not 'o' in params:
-            print(r'''\
+            display_message(
+                '''
+                    Zum Gebrauch dieses Befehls entweder:
 
-    Zum Gebrauch dieses Befehls entweder:
+                        phpytex -help
+                        phpytex --help
 
-        phpytex -help
-        phpytex --help
+                    um diese Hilfe aufzurufen, oder:
 
-    um diese Hilfe aufzurufen, oder:
+                        phpytex -man
+                        phpytex -guide
+                        phpytex -usage
 
-        phpytex -man
-        phpytex -guide
-        phpytex -usage
+                    um die Gebrauchsanleitung aufzurufen, oder:
 
-    um die Gebrauchsanleitung aufzurufen, oder:
+                        phpytex
+                            -i DATEI              Inputdatei relativ zum aktuellen Ordner.
+                            -o DATEI              Outputdatei relativ zum aktuellen Ordner.
+                            ___________________
+                            | optionale Flags |
+                            ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+                            -path PFAD            Pfad des lokalen Ordners.
+                            -head DATEI           Datei mit Latex-Kommentar als Kopfteil.
+                            -insert-bib           Inhalte von .bbl-Datei(en) werden eingesetzt anstelle von \\bibliography{...}.
 
-        phpytex
-            -i DATEI              Inputdatei relativ zum aktuellen Ordner.
-            -o DATEI              Outputdatei relativ zum aktuellen Ordner.
-            ___________________
-            | optionale Flags |
-            ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
-            -path PFAD            Pfad des lokalen Ordners.
-            -head DATEI           Datei mit Latex-Kommentar als Kopfteil.
-            -insert-bib           Inhalte von .bbl-Datei(en) werden eingesetzt anstelle von \\bibliography{...}.
+                            -debug                Präkompiliertes Pythonskript wird zu Outputdatei geschrieben.
+                            -no-compile           Latex-Datei wird generiert, aber nicht kompiliert.
+                            -silent               Dateiaufbau in Outputdatei NICHT zeigen.
 
-            -debug                Präkompiliertes Pythonskript wird zu Outputdatei geschrieben.
-            -no-compile           Latex-Datei wird generiert, aber nicht kompiliert.
-            -silent               Dateiaufbau in Outputdatei NICHT zeigen.
+                            -no-comm              Entferne sämtliche LaTex-Kommentare
+                            -no-comm-auto         Entferne rauskommentierte Zeilen (% ...) aber nicht Kommentare (%%...).
+                            -max-length [0-9]+    Setze maximale Länge des Dokuments auf n Zeilen: verhindert endlose schleifen.
+                                                (Defaultwert 10000.)
 
-            -no-comm              Entferne sämtliche LaTex-Kommentare
-            -no-comm-auto         Entferne rauskommentierte Zeilen (% ...) aber nicht Kommentare (%%...).
-            -max-length [0-9]+    Setze maximale Länge des Dokuments auf n Zeilen: verhindert endlose schleifen.
-                                  (Defaultwert 10000.)
+                            -tabs / -tab          Benutze \t als Einheit für Einrückung (Default).
+                            -spaces [0-9]+        Benutze n x Leerzeichen als Einheit für Einrückung.
 
-            -tabs / -tab          Benutze \t als Einheit für Einrückung (Default).
-            -spaces [0-9]+        Benutze n x Leerzeichen als Einheit für Einrückung.
+                            -seed [0-9]+          Seed für Pythons np.random.
 
-            -seed [0-9]+          Seed für Pythons np.random.
-
-''');
+                ''',
+                indent='''
+                '''
+            );
             return;
 
         self.HAUPTDATEI = str(params['i']);
@@ -168,7 +193,7 @@ class phpytexTranspiler(object):
         self.HAUPTDATEI, _, _  = self.____extractfilename(path=self.HAUPTDATEI, relative=True);
         self.OUTPUTDATEI, _, _ = self.____extractfilename(path=self.OUTPUTDATEI, relative=True, ext='');
         if self.HAUPTDATEI == self.OUTPUTDATEI:
-            print('\n\tACHTUNG! Die Namen der py-tex-Datei und Outputdatei dürfen nicht übereinstimmen!\n');
+            display_message('''\n    ACHTUNG! Die Namen der py-tex-Datei und Outputdatei dürfen nicht übereinstimmen!\n''');
             return;
         hauptfile, _, _ = self.____extractfilename(path=self.OUTPUTDATEI, relative=False, ext='tex');
 
@@ -194,10 +219,18 @@ class phpytexTranspiler(object):
         if params['insert-bib']:
             self.INSERTBIB = True;
 
-        print('----------------------');
-        print('|    \033[32;1m(PH(p)y)TeX\033[0m    |');
-        print('----------------------');
-        print('\nDokumentteile werden kombiniert...\n');
+        display_message(
+            '''
+            ---------------------
+            |    \033[32;1m(PH(p)y)TeX\033[0m    |
+            ---------------------
+
+            Dokumentteile werden kombiniert...
+
+            ''',
+            indent='''
+            ''',
+        );
 
         self.INCLUDES = [];
         self.PRECOMPILELINES = [];
@@ -211,9 +244,9 @@ class phpytexTranspiler(object):
         if not erfolg:
             return;
 
-        print('\n...Dokumentteile erfolgreich kombiniert.\n');
+        display_message('''\n...Dokumentteile erfolgreich kombiniert.\n''');
         self.____execmetacode(lines=lines, fname=hauptfile, debug=debug, cmpl=cmpl);
-        print('');
+        display_message('''\n\033[92;1m(PH(p)y)TeX\033[0m fertig!\n''');
         return;
 
 
@@ -247,342 +280,343 @@ class phpytexTranspiler(object):
     def ____createmetacode(self, lines=[], fname='', cmpl=False):
         fname_rel, _, _ = self.____extractfilename(path=fname, relative=True, ext='');
         tab = self.INDENTCHARACTER;
-        lines_pre = [
-            r'''import sys;''',
-            r'''import os;''',
-            r'''import re;''',
-            r'''import subprocess;''',
-            r'''import numpy;''',
-            r'''import numpy as np;''',
-            r'''from typing import Any;''',
-            r'''''',
-            r'''____lines____            = {'post-compile':[], 'anon':[], 'bib':{}};''',
-            r'''____len_empty_block____  = 0;''',
-            r'''____indent____           = ''' + "'" + self.INDENTCHARACTER_re + "'" + ''';''',
-            r'''____indentation____      = '';''',
-            r'''____filetex_name____     = "'''+fname+'''";''',
-            r'''____filetex_name_rel____ = "'''+fname_rel+'''";''',
-            r'''____filetex____          = None;''',
-            r'''____error_toolong____    = False;''',
-            r'''____outputlength____     = 0;''',
-            r'''____maxlength____        = '''+str(self.MAXLENGTH)+''';''',
-            r'''____insertbib____        = '''+str(self.INSERTBIB)+''';''',
-            r'''____compilelatex____     = '''+str(cmpl)+''';''',
-            r'''____last_latex____       = None;''',
-            r'''____rootdir____          = "'''+self.ROOTDIR+'''";''',
-            r'''____seed____             = '''+str(self.SEED)+''';''',
-            r'''__ROOT__                 = None;''',
-            r'''__DIR__                  = None;''',
-            r'''__SKIP__                 = None;''',
-            r'''__FNAME__                = None;''',
-            r'''__LINENR__               = None;''',
-            r'''____error_eval____       = False;''',
-            r'''''',
-            r'''## reseed-funktion:''',
-            r'''def ____reseed():''',
-            tab+r'''global ____seed____;''',
-            tab+r'''np.random.seed(____seed____);''',
-            tab+r'''return True;''',
-            r'''''',
-            r'''class ____skipclass:''',
-            tab+r'''def __init__(self):''',
-            tab+tab+r'''self.len = 0;''',
-            tab+tab+r'''self.chain = [];''',
-            tab+tab+r'''self.status = False;''',
-            tab+tab+r'''pass;''',
-            tab+r'''''',
-            tab+r'''def get(self):''',
-            tab+tab+r'''self.status = (True in self.chain);''',
-            tab+tab+r'''return self.status;''',
-            tab+r'''''',
-            tab+r'''def set(self, val):''',
-            tab+tab+r'''if self.len == 0:''',
-            tab+tab+tab+r'''return False;''',
-            tab+tab+r'''self.chain[self.len-1] = val;''',
-            tab+tab+r'''self.get();''',
-            tab+tab+r'''return True;''',
-            tab+r'''''',
-            tab+r'''def add(self, val):''',
-            tab+tab+r'''self.chain.append(val);''',
-            tab+tab+r'''self.len += 1;''',
-            tab+tab+r'''self.get();''',
-            tab+tab+r'''pass;''',
-            tab+r'''''',
-            tab+r'''def rem(self):''',
-            tab+tab+r'''self.chain = self.chain[:-1];''',
-            tab+tab+r'''self.len -= 1;''',
-            tab+tab+r'''self.get();''',
-            tab+tab+r'''pass;''',
-            tab+r'''''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''def ____ignore(opt, val=None):''',
-            tab+r'''global __SKIP__;''',
-            tab+r'''global ____skipclass;''',
-            tab+r'''''',
-            tab+r'''if opt == 'get':''',
-            tab+tab+r'''return __SKIP__.get();''',
-            tab+r'''elif opt == 'add':''',
-            tab+tab+r'''__SKIP__.add(False);''',
-            tab+r'''elif opt == 'set':''',
-            tab+tab+r'''__SKIP__.set(val);''',
-            tab+r'''elif opt == 'rem':''',
-            tab+tab+r'''__SKIP__.rem();''',
-            tab+r'''elif opt == 'init':''',
-            tab+tab+r'''__SKIP__ = ____skipclass();''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''def ____reset_indentation():''',
-            tab+r'''global ____indentation____;''',
-            tab+r'''____indentation____ = '';''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''def ____set_indentation(s: str):''',
-            tab+r'''global ____indentation____;''',
-            tab+r'''____indentation____ = s;''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''## expand: quickpython —> prä-eval-Ausdruck''',
-            r'''def ____qp(linenr=None, expr='', params={}):''',
-            tab+r'''if ____ignore('get'):''',
-            tab+tab+r'''return "''";''',
-            tab+r'''''',
-            tab+r'''global ____error_eval____;''',
-            tab+r'''global ____last_latex____;''',
-            tab+r'''global __LINENR__;''',
-            tab+r'''____error_eval____ = True;''',
-            tab+r'''____last_latex____ = expr;''',
-            tab+r'''__LINENR__ = linenr;''',
-            tab+r'''''',
-            # tab+r'''re_meta = r'(\<{3}(?:(?![<>]).)*\>{3})';''', # <— problematisch!
-            tab+r'''re_meta = r'(\<{3}(?![\<|\`])(?:(?!(?:\<{3}|\>{3})).)*\>{3})';''',
-            tab+r'''has_subs = True;''',
-            tab+r'''while has_subs:''',
-            tab+tab+r'''meta = "''";''',
-            tab+tab+r'''has_subs = False;''',
-            tab+tab+r'''for i,u in enumerate(re.split(re_meta, expr)):''',
-            # tab+tab+tab+r'''m = re.match(r'^\<{3}((?:(?!>).)*)\>{3}$', u);''', # <— problematisch!
-            tab+tab+tab+r'''m = re.match(r'^\<{3}((?![\<|\`])(?:(?!(?:\<{3}|\>{3})).)*)\>{3}$', u);''',
-            tab+tab+tab+r'''if m:''',
-            tab+tab+tab+tab+r'''# has_subs = True;''',
-            tab+tab+tab+tab+r'''# has_subs = False; # <— erlaube nur eine Auflösungsstufe.''',
-            tab+tab+tab+tab+r'''u = m.group(1);''',
-            tab+tab+tab+tab+r'''u = re.sub(r'^[\s\?\=]+|[\s\;]+$', '', u);''',
-            tab+tab+tab+tab+r'''if u == '':''',
-            tab+tab+tab+tab+tab+r'''continue;''',
-            tab+tab+tab+tab+r'''u = 'str('+u+')';''',
-            tab+tab+tab+tab+r'''meta += '+'+u;''',
-            tab+tab+tab+r'''else:''',
-            tab+tab+tab+tab+r'''mm = re.split(r'(\'+)', u);''',
-            tab+tab+tab+tab+r'''for uu in mm:''',
-            tab+tab+tab+tab+tab+r'''if re.match(r'\'+', uu):''',
-            tab+tab+tab+tab+tab+tab+r'''uu = '"'+uu+'"';''',
-            tab+tab+tab+tab+tab+r'''else:''',
-            tab+tab+tab+tab+tab+tab+r'''uu = "'"+uu+"'";''',
-            tab+tab+tab+tab+tab+r'''meta += '+'+uu;''',
-            tab+tab+tab+r'''continue;''',
-            tab+tab+r'''expr = meta;''',
-            tab+tab+r'''continue;''',
-            tab+r'''''',
-            tab+r'''return expr;''',
-            r'''''',
-            r'''## record + print-to-latex''',
-            r'''def ____print(s: Any, keep_indent=True, anon=False):''',
-            tab+r'''if ____ignore('get'):''',
-            tab+tab+r'''return;''',
-            tab+r'''''',
-            tab+r'''global ____len_empty_block____;''',
-            tab+r'''global ____error_eval____;''',
-            tab+r'''global ____error_toolong____;''',
-            tab+r'''global ____outputlength____;''',
-            tab+r'''''',
-            tab+r'''## reduces blocks of empty lines to single empty lines:''',
-            tab+r'''s = str(s);''',
-            tab+r'''____len_empty_block____ = (____len_empty_block____ + 1) if re.match(r'^\s*$', s) else 0;''',
-            tab+r'''if ____len_empty_block____ > 1:''',
-            tab+tab+r'''return;''',
-            tab+r'''''',
-            tab+r'''____error_eval____ = False;''',
-            tab+r'''if ____error_toolong____:''',
-            tab+tab+r'''return;''',
-            tab+r'''____outputlength____ += 1;''',
-            tab+r'''if ____outputlength____ > ____maxlength____:''',
-            tab+tab+r'''____error_toolong____ = True;''',
-            tab+r'''''',
-            tab+r'''____forceprint(s, keep_indent=keep_indent, anon=anon);''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''def ____forceprint(s: str, keep_indent=True, anon=False):''',
-            tab+r'''global ____filetex____;''',
-            tab+r'''global ____lines____;''',
-            tab+r'''''',
-            tab+r'''n = len(____lines____['post-compile']);''',
-            tab+r'''for _s in re.split(r'\n', s):''',
-            tab+tab+r'''if keep_indent:''',
-            tab+tab+tab+r'''_s = ____indentation____ + _s;''',
-            tab+tab+r'''print(_s, file=____filetex____);''',
-            tab+tab+r'''____lines____['post-compile'].append(_s);''',
-            tab+tab+r'''if anon:''',
-            tab+tab+tab+r'''____lines____['anon'].append(n);''',
-            tab+tab+r'''n += 1;''',
-            tab+r'''''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''def ____insertbib(fname='', src='', indent='', anon=False):''',
-            tab+r'''global ____filetex____;''',
-            tab+r'''global ____lines____;''',
-            tab+r'''global ____insertbib____;''',
-            r'''''',
-            tab+r'''nom, _ = os.path.splitext(fname);''',
-            tab+r'''line = indent + r'\bibliography{'+nom+'}';''',
-            tab+r'''print(line, file=____filetex____);''',
-            tab+r'''## lies Datei ein und füge Inhalte hinzu.''',
-            tab+r'''____lines____['post-compile'].append(line);''',
-            tab+r'''if not src in ____lines____['bib']:''',
-            tab+tab+r'''____lines____['bib'][src] = [];''',
-            tab+r'''n = len(____lines____['post-compile']);''',
-            tab+r'''if anon:''',
-            tab+tab+r'''____lines____['anon'].append(n-1);''',
-            tab+r'''elif ____insertbib____:''',
-            tab+tab+r'''____lines____['bib'][src].append(n-1);''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''## PDFLATEX:''',
-            r'''def ____compilelatex():''',
-            tab+r'''global ____rootdir____;''',
-            tab+r'''global ____filetex_name____;''',
-            tab+r'''global ____filetex_name_rel____;''',
-            tab+r'''global ____lines____;''',
-            tab+r'''''',
-            tab+r'''print('\n\nPDFLATEX WIRD AUSGEFÜHRT:');''',
-            tab+r'''outfile, _ = os.path.splitext(____filetex_name____);''',
-            tab+r'''proc = subprocess.Popen(['pdflatex', outfile], cwd=____rootdir____);''',
-            tab+r'''proc.wait();''',
-            tab+r'''print('\n\nBIBTEX WIRD AUSGEFÜHRT:');''',
-            tab+r'''for src in ____lines____['bib']:''',
-            tab+tab+r'''src, _ = os.path.splitext(src);''',
-            tab+tab+r'''proc = subprocess.Popen(['bibtex', src], cwd=____rootdir____);''',
-            tab+tab+r'''proc.wait();''',
-            tab+r'''print('\n\nDOKUMENT {'+____filetex_name_rel____+'.pdf} WURDE FERTIGGESTELLT.');''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''## ERSETZUNG VON \bibliography-Befehlen durch Inhalte + Anonymisierung:''',
-            r'''def ____cleanlatex():''',
-            tab+r'''global ____filetex____;''',
-            tab+r'''global ____filetex_name____;''',
-            tab+r'''global ____lines____;''',
-            tab+r'''global ____insertbib;''',
-            tab+r'''''',
-            tab+r'''____filetex____ = open(____filetex_name____, 'w+');''',
-            tab+r'''''',
-            tab+r'''bibindex = [];''',
-            tab+r'''bibtext = {};''',
-            tab+r'''for src in ____lines____['bib']:''',
-            tab+tab+r'''bibindex += ____lines____['bib'][src];''',
-            tab+tab+r'''n = len(____lines____['bib'][src]);''',
-            tab+tab+r'''biblines = [];''',
-            tab+tab+r'''try:''',
-            tab+tab+tab+r'''fp = open(src, 'r');''',
-            tab+tab+tab+r'''lines = fp.readlines();''',
-            tab+tab+tab+r'''fp.close();''',
-            tab+tab+tab+r'''for bibline in lines:''',
-            tab+tab+tab+tab+r'''bibline = re.sub(r'[\s\n]+$', '', bibline);''',
-            tab+tab+tab+tab+r'''bibline = re.sub(r'^(.*)\%(.*)', r'\1', bibline);''',
-            tab+tab+tab+tab+r'''if re.match(r'^\s*\%.*', bibline):''',
-            tab+tab+tab+tab+tab+r'''continue;''',
-            tab+tab+tab+tab+r'''biblines.append(bibline);''',
-            tab+tab+tab+tab+r'''pass;''',
-            tab+tab+r'''except:''',
-            tab+tab+tab+r'''biblines = None;''',
-            tab+tab+tab+r'''print('ACHTUNG! Bib-Datei {'+src+'} konnte nicht gefunden werden');''',
-            tab+tab+r'''bibtext[src] = biblines;''',
-            tab+tab+r'''pass;''',
-            tab+r'''''',
-            tab+r'''nr_lines = len(____lines____['post-compile']);''',
-            tab+r'''for n, line in enumerate(____lines____['post-compile']):''',
-            tab+tab+r'''if n in ____lines____['anon']:''',
-            tab+tab+tab+r'''continue;''',
-            tab+tab+r'''if n in bibindex:''',
-            tab+tab+tab+r'''src = None''',
-            tab+tab+tab+r'''for src_ in ____lines____['bib']:''',
-            tab+tab+tab+tab+r'''if n in ____lines____['bib'][src_]:''',
-            tab+tab+tab+tab+tab+r'''src = src_;''',
-            tab+tab+tab+tab+tab+r'''break;''',
-            tab+tab+tab+tab+r'''continue;''',
-            tab+tab+tab+r'''try:''',
-            tab+tab+tab+tab+r'''if not src is None and not bibtext[src] is None:''',
-            tab+tab+tab+tab+tab+r'''indent = re.sub(r'^(\s*)(\S|).*', r'\1', line);''',
-            tab+tab+tab+tab+tab+r'''for bibline in bibtext[src]:''',
-            tab+tab+tab+tab+tab+tab+r'''print(indent + bibline, file=____filetex____);''',
-            tab+tab+tab+tab+tab+tab+r'''pass;''',
-            tab+tab+tab+tab+tab+r'''continue;''',
-            tab+tab+tab+r'''except:''',
-            tab+tab+tab+tab+r'''pass;''',
-            tab+tab+r'''if n == nr_lines-1 and line == '':''',
-            tab+tab+tab+r'''continue;''',
-            tab+tab+r'''print(line, file=____filetex____);''',
-            tab+tab+r'''pass;''',
-            tab+r'''''',
-            tab+r'''____filetex____.close();''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''def ____compilephpytex():''',
-            tab+r'''global ____filetex____;''',
-            tab+r'''global ____lines____;''',
-            tab+r'''global ____reseed;''',
-            tab+r'''global ____print;''',
-            tab+r'''global ____qp;''',
-            tab+r'''global ____ignore;''',
-            tab+r'''global __ROOT__;''',
-            tab+r'''global __DIR__;''',
-            tab+r'''global __FNAME__;''',
-            tab+r'''global __LINENR__;''',
-            tab+r'''''',
-            tab+r'''____ignore('init');''',
-            r'''''',
-        ];
-        self.LENPRECODE = len(lines_pre);
-        lines = lines_pre + lines + [
-            tab+r'''____reset_indentation();''',
-            tab+r'''pass;''',
-            r'''''',
-            r'''try:''',
-            tab+r'''____filetex____ = open(____filetex_name____, 'w+');''',
-            tab+r'''____compilephpytex();''',
-            tab+r'''____filetex____.close();''',
-            tab+r'''if ____compilelatex____:''',
-            tab+tab+r'''____compilelatex();''',
-            tab+r'''else:''',
-            tab+tab+r'''print('\nPDFLATEX WIRD NICHT AUSGEFÜHRT.');''',
-            tab+r'''____cleanlatex();''',
-            r'''except Exception as e:''',
-            tab+r'''print("----------------------------------------------------------------");''',
-            tab+r'''print("!!! (PH(p)y)TeX Kompilationsfehler !!!");''',
-            tab+r'''if ____error_eval____:''',
-            tab+tab+r'''____last_latex____ = eval("'"+____last_latex____+"'");''',
-            tab+tab+r'''print("  DATEI: "+str(__FNAME__));''',
-            tab+tab+r'''print("  ZEILE: "+str(__LINENR__ + 1)+" (lokale Position innerhalb Datei).");''',
-            tab+tab+r'''print("!!! Zeile konnte nicht evaluiert werden !!!");''',
-            tab+tab+r'''print("----------------------------------------------------------------");''',
-            tab+tab+r'''print(____last_latex____);''',
-            tab+tab+r'''print("----------------------------------------------------------------");''',
-            tab+tab+r'''____forceprint("----------------------------------------------------------------");''',
-            tab+tab+r'''____forceprint("!!! (PH(p)y)TeX-FEHLER !!!");''',
-            tab+tab+r'''____forceprint("  DATEI: "+str(__FNAME__));''',
-            tab+tab+r'''____forceprint("  ZEILE: "+str(__LINENR__ + 1)+" (lokale Position innerhalb Datei).");''',
-            tab+tab+r'''____forceprint("!!! Zeile konnte nicht evaluiert werden !!!");''',
-            tab+tab+r'''____forceprint("----------------------------------------------------------------");''',
-            tab+tab+r'''____forceprint(____last_latex____);''',
-            tab+tab+r'''____forceprint("----------------------------------------------------------------");''',
-            tab+r'''else:''',
-            tab+tab+r'''print("----------------------------------------------------------------");''',
-            tab+tab+r'''print(sys.exc_info())''',
-            tab+tab+r'''print(e)''',
-            tab+tab+r'''print("----------------------------------------------------------------");''',
-            r'''''',
-        ];
-        return lines;
+        lines_pre = string_long(
+            r'''
+            import sys;
+            import os;
+            import re;
+            import subprocess;
+            import numpy;
+            import numpy as np;
+            from typing import Any;
 
+            ____lines____            = {{'post-compile':[], 'anon':[], 'bib':{{}}}};
+            ____len_empty_block____  = 0;
+            ____indent____           = '{indentchar}';
+            ____indentation____      = '';
+            ____filetex_name____     = '{fname}';
+            ____filetex_name_rel____ = '{fname_rel}';
+            ____filetex____          = None;
+            ____error_toolong____    = False;
+            ____outputlength____     = 0;
+            ____maxlength____        = {maxlength};
+            ____insertbib____        = {insertbib};
+            ____compilelatex____     = {compilelatex};
+            ____last_latex____       = None;
+            ____rootdir____          = '{rootdir}';
+            ____seed____             = {seed};
+            __ROOT__                 = None;
+            __DIR__                  = None;
+            __SKIP__                 = None;
+            __FNAME__                = None;
+            __LINENR__               = None;
+            ____error_eval____       = False;
+
+            ## reseed-funktion:
+            def ____reseed():
+                global ____seed____;
+                np.random.seed(____seed____);
+                return True;
+
+            class ____skipclass:
+                def __init__(self):
+                    self.len = 0;
+                    self.chain = [];
+                    self.status = False;
+                    pass;
+
+                def get(self):
+                    self.status = (True in self.chain);
+                    return self.status;
+
+                def set(self, val):
+                    if self.len == 0:
+                        return False;
+                    self.chain[self.len-1] = val;
+                    self.get();
+                    return True;
+
+                def add(self, val):
+                    self.chain.append(val);
+                    self.len += 1;
+                    self.get();
+                    pass;
+
+                def rem(self):
+                    self.chain = self.chain[:-1];
+                    self.len -= 1;
+                    self.get();
+                    pass;
+
+                pass;
+
+            def ____ignore(opt, val=None):
+                global __SKIP__;
+                global ____skipclass;
+
+                if opt == 'get':
+                    return __SKIP__.get();
+                elif opt == 'add':
+                    __SKIP__.add(False);
+                elif opt == 'set':
+                    __SKIP__.set(val);
+                elif opt == 'rem':
+                    __SKIP__.rem();
+                elif opt == 'init':
+                    __SKIP__ = ____skipclass();
+                pass;
+
+            def ____reset_indentation():
+                global ____indentation____;
+                ____indentation____ = '';
+                pass;
+
+            def ____set_indentation(s: str):
+                global ____indentation____;
+                ____indentation____ = s;
+                pass;
+
+            ## expand: quickpython —> prä-eval-Ausdruckâ
+            def ____qp(linenr=None, expr='', params={{}}):
+                if ____ignore('get'):
+                    return "''";
+
+                global ____error_eval____;
+                global ____last_latex____;
+                global __LINENR__;
+                ____error_eval____ = True;
+                ____last_latex____ = expr;
+                __LINENR__ = linenr;
+
+                re_meta = r'(\<{{3}}(?![\<|\`])(?:(?!(?:\<{{3}}|\>{{3}})).)*\>{{3}})';
+                has_subs = True;
+                while has_subs:
+                    meta = "''";
+                    has_subs = False;
+                    for i,u in enumerate(re.split(re_meta, expr)):
+                        m = re.match(r'^\<{{3}}((?![\<|\`])(?:(?!(?:\<{{3}}|\>{{3}})).)*)\>{{3}}$', u);
+                        if m:
+                            # has_subs = True;
+                            # has_subs = False; # <— erlaube nur eine Auflösungsstufe.
+                            u = m.group(1);
+                            u = re.sub(r'^[\s\?\=]+|[\s\;]+$', '', u);
+                            if u == '':
+                                continue;
+                            u = 'str('+u+')';
+                            meta += '+'+u;
+                        else:
+                            mm = re.split(r'(\'+)', u);
+                            for uu in mm:
+                                if re.match(r'\'+', uu):
+                                    uu = '"'+uu+'"';
+                                else:
+                                    uu = "'"+uu+"'";
+                                meta += '+'+uu;
+                        continue;
+                    expr = meta;
+                    continue;
+
+                return expr;
+
+            ## record + print-to-latex
+            def ____print(s: Any, keep_indent=True, anon=False):
+                if ____ignore('get'):
+                    return;
+
+                global ____len_empty_block____;
+                global ____error_eval____;
+                global ____error_toolong____;
+                global ____outputlength____;
+
+                ## reduces blocks of empty lines to single empty lines:
+                s = str(s);
+                ____len_empty_block____ = (____len_empty_block____ + 1) if re.match(r'^\s*$', s) else 0;
+                if ____len_empty_block____ > 1:
+                    return;
+
+                ____error_eval____ = False;
+                if ____error_toolong____:
+                    return;
+                ____outputlength____ += 1;
+                if ____outputlength____ > ____maxlength____:
+                    ____error_toolong____ = True;
+
+                ____forceprint(s, keep_indent=keep_indent, anon=anon);
+                pass;
+
+            def ____forceprint(s: str, keep_indent=True, anon=False):
+                global ____filetex____;
+                global ____lines____;
+
+                n = len(____lines____['post-compile']);
+                for _s in re.split(r'\n', s):
+                    if keep_indent:
+                        _s = ____indentation____ + _s;
+                    print(_s, file=____filetex____);
+                    ____lines____['post-compile'].append(_s);
+                    if anon:
+                        ____lines____['anon'].append(n);
+                    n += 1;
+
+                pass;
+
+            def ____insertbib(fname='', src='', indent='', anon=False):
+                global ____filetex____;
+                global ____lines____;
+                global ____insertbib____;
+
+                nom, _ = os.path.splitext(fname);
+                line = indent + r'\bibliography{{'+nom+'}}';
+                print(line, file=____filetex____);
+                ## lies Datei ein und füge Inhalte hinzu.
+                ____lines____['post-compile'].append(line);
+                if not src in ____lines____['bib']:
+                    ____lines____['bib'][src] = [];
+                n = len(____lines____['post-compile']);
+                if anon:
+                    ____lines____['anon'].append(n-1);
+                elif ____insertbib____:
+                    ____lines____['bib'][src].append(n-1);
+                pass;
+
+            ## PDFLATEX:
+            def ____compilelatex():
+                print('\n\nPDFLATEX WIRD AUSGEFÜHRT:');
+                outfile, _ = os.path.splitext(____filetex_name____);
+                proc = subprocess.Popen(['pdflatex', outfile], cwd=____rootdir____);
+                proc.wait();
+                print('\n\nBIBTEX WIRD AUSGEFÜHRT:');
+                for src in ____lines____['bib']:
+                    src, _ = os.path.splitext(src);
+                    proc = subprocess.Popen(['bibtex', src], cwd=____rootdir____);
+                    proc.wait();
+                print('\n\nDOKUMENT \033[1m{{fname}}.pdf\033[0m WURDE FERTIGGESTELLT.'.format(fname=____filetex_name_rel____));
+                pass;
+
+            ## ERSETZUNG VON \bibliography-Befehlen durch Inhalte + Anonymisierung:
+            def ____cleanlatex():
+                global ____filetex____;
+
+                with open(____filetex_name____, 'w+') as ____filetex____:
+                    bibindex = [];
+                    bibtext = {{}};
+                    for src in ____lines____['bib']:
+                        bibindex += ____lines____['bib'][src];
+                        n = len(____lines____['bib'][src]);
+                        biblines = [];
+                        try:
+                            fp = open(src, 'r');
+                            lines = fp.readlines();
+                            fp.close();
+                            for bibline in lines:
+                                bibline = re.sub(r'[\s\n]+$', '', bibline);
+                                bibline = re.sub(r'^(.*)\%(.*)', r'\1', bibline);
+                                if re.match(r'^\s*\%.*', bibline):
+                                    continue;
+                                biblines.append(bibline);
+                                pass;
+                        except:
+                            biblines = None;
+                            print('ACHTUNG! Bib-Datei {{'+src+'}} konnte nicht gefunden werden');
+                        bibtext[src] = biblines;
+                        pass;
+
+                    nr_lines = len(____lines____['post-compile']);
+                    for n, line in enumerate(____lines____['post-compile']):
+                        if n in ____lines____['anon']:
+                            continue;
+                        if n in bibindex:
+                            src = None
+                            for src_ in ____lines____['bib']:
+                                if n in ____lines____['bib'][src_]:
+                                    src = src_;
+                                    break;
+                                continue;
+                            try:
+                                if not src is None and not bibtext[src] is None:
+                                    indent = re.sub(r'^(\s*)(\S|).*', r'\1', line);
+                                    for bibline in bibtext[src]:
+                                        print(indent + bibline, file=____filetex____);
+                                        pass;
+                                    continue;
+                            except:
+                                pass;
+                        if n == nr_lines-1 and line == '':
+                            continue;
+                        print(line, file=____filetex____);
+                pass;
+
+            def ____compilephpytex():
+                global ____filetex____;
+                global ____lines____;
+                global ____reseed;
+                global ____print;
+                global ____qp;
+                global ____ignore;
+                global __ROOT__;
+                global __DIR__;
+                global __FNAME__;
+                global __LINENR__;
+
+                ____ignore('init');
+            '''.format(
+                indentchar   = self.INDENTCHARACTER_re,
+                fname        = fname,
+                fname_rel    = fname_rel,
+                maxlength    = self.MAXLENGTH,
+                insertbib    = self.INSERTBIB,
+                compilelatex = cmpl,
+                rootdir      = self.ROOTDIR,
+                seed         = self.SEED,
+            ),
+            indent='''
+            '''
+        );
+        self.LENPRECODE = len(lines_pre);
+        lines = lines_pre + lines + string_long(
+            r'''
+                ____reset_indentation();
+                pass;
+
+            try:
+                ____filetex____ = open(____filetex_name____, 'w+');
+                ____compilephpytex();
+                ____filetex____.close();
+                if ____compilelatex____:
+                    ____compilelatex();
+                else:
+                    print('\nPDFLATEX WIRD NICHT AUSGEFÜHRT.');
+                ____cleanlatex();
+            except Exception as e:
+                print("-----------------------------------------------------------------");
+                print("!!! (PH(p)y)TeX Kompilationsfehler !!!");
+                if ____error_eval____:
+                    ____last_latex____ = eval("'"+____last_latex____+"'");
+                    print("  DATEI: "+str(__FNAME__));
+                    print("  ZEILE: "+str(__LINENR__ + 1)+" (lokale Position innerhalb Datei).");
+                    print("!!! Zeile konnte nicht evaluiert werden !!!");
+                    print("-----------------------------------------------------------------");
+                    print(____last_latex____);
+                    print("-----------------------------------------------------------------");
+                    ____forceprint("-----------------------------------------------------------------");
+                    ____forceprint("!!! (PH(p)y)TeX-FEHLER !!!");
+                    ____forceprint("  DATEI: "+str(__FNAME__));
+                    ____forceprint("  ZEILE: "+str(__LINENR__ + 1)+" (lokale Position innerhalb Datei).");
+                    ____forceprint("!!! Zeile konnte nicht evaluiert werden !!!");
+                    ____forceprint("-----------------------------------------------------------------");
+                    ____forceprint(____last_latex____);
+                    ____forceprint("-----------------------------------------------------------------");
+                else:
+                    print("-----------------------------------------------------------------");
+                    print(sys.exc_info())
+                    print(e)
+                    print("-----------------------------------------------------------------");
+
+            ''',
+            indent='''
+            '''
+        );
+        return lines;
 
     def ____execmetacode(self, lines=[], fname='', debug=False, cmpl=False):
         lines = self.____createmetacode(lines=lines, fname=fname, cmpl=cmpl);
@@ -592,8 +626,7 @@ class phpytexTranspiler(object):
         ____filetex____.close();
 
         if debug:
-            print('\nSiehe Outputdatei: {'+fname_rel+'.tex}.');
-            print('\n(PH(p)y)TeX FERTIG.');
+            display_message('''Siehe Outputdatei: \033[1m{fname}.tex\033[0m'''.format(fname_rel));
             return;
 
         try:
@@ -629,29 +662,48 @@ class phpytexTranspiler(object):
                         break;
                     continue;
 
-                print("----------------------------------------------------------------");
-                print("!!! (PH(p)y)TeX Kompilation hat versagt !!!");
-                print("  DATEI: "+__FNAME__);
-                print("  ZEILE: "+str(__LINENR__ + 1)+" (lokale Position innerhalb Datei).");
-                print("!!! Syntaxfehler !!!");
-                print("----------------------------------------------------------------");
-                print(line_err);
-                print("----------------------------------------------------------------");
-                print("(siehe Outputdatei)");
+                display_message(
+                    r'''
+                    -----------------------------------------------------------------
+                    !!! (PH(p)y)TeX Kompilation hat versagt !!!
+                      DATEI: {fname}
+                      ZEILE: {lineno} (lokale Position innerhalb Datei).
+                    !!! Syntaxfehler !!!
+                    -----------------------------------------------------------------
+                    '''.format(
+                        fname  = __FNAME__,
+                        lineno = __LINENR__ + 1,
+                    ),
+                    indent='''
+                    '''
+                );
+                display_message(line_err);
+                display_message(r'''-----------------------------------------------------------------''');
+                display_message(r'''    (siehe Outputdatei)''');
 
-                ____filetex____ = open(fname, 'w+');
-                print('\n'.join([line for k, ignore, line in precompilelines if k < n and not ignore is True]), file=____filetex____);
-                print("----------------------------------------------------------------", file=____filetex____);
-                print("!!! (PH(p)y)TeX Kompilation hat versagt !!!", file=____filetex____);
-                print("  DATEI: "+__FNAME__, file=____filetex____);
-                print("  ZEILE: "+str(__LINENR__ + 1)+" (lokale Position innerhalb Datei).", file=____filetex____);
-                print("!!! Syntaxfehler !!!", file=____filetex____);
-                print("----------------------------------------------------------------", file=____filetex____);
-                print('\n'.join([line for k, ignore, line in precompilelines if k == n and ignore is False]), file=____filetex____);
-                print("----------------------------------------------------------------", file=____filetex____);
-                ____filetex____.close();
+                ## print to main tex file:
+                with open(fname, 'w+') as fp:
+                    display_message(*[line for k, ignore, line in precompilelines if k < n and not ignore is True], file=fp);
+                    display_message(
+                        r'''
+                        -----------------------------------------------------------------
+                        !!! (PH(p)y)TeX Kompilation hat versagt !!!
+                        DATEI: {fname}
+                        ZEILE: {lineno} (lokale Position innerhalb Datei).
+                        !!! Syntaxfehler !!!
+                        -----------------------------------------------------------------
+                        '''.format(
+                            fname  = __FNAME__,
+                            lineno = __LINENR__ + 1,
+                        ),
+                        indent='''
+                        ''',
+                        file=fp
+                    );
+                    display_message('', *[line for k, ignore, line in precompilelines if k == n and ignore is False], file=fp);
+                    display_message(r'''-----------------------------------------------------------------''', file=fp);
             except:
-                print(err);
+                display_error(err);
 
         return;
 
@@ -737,22 +789,36 @@ class phpytexTranspiler(object):
 
         ## Prüfe, ob Datei schon inkludiert wurde (entlang aktueller input-Kette):
         if src in chain:
-            print('    '*(indent['struct']+1)+'— [∞] '+fname_curr+'; (∞-Schleife! Datei wird nicht hinzugefügt!)');
-            struct.append('%%'+'    '*(indent['struct']+1)+'— [∞] '+fname_curr+'; (∞-Schleife! Datei wird nicht hinzugefügt!)');
+            msg = r'''{branch} [∞] {fname}; (∞-Schleife! Datei wird nicht hinzugefügt!)'''.format(
+                branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                fname  =  fname_curr,
+            );
+            display_message(msg);
+            struct.append('%%' + msg);
             return True;
 
         ## Falls Dateiquelle nicht existiert oder sich nicht öffnen lässt:
         if not bool_getfile:
             self.ERROR = True;
             if not dateityp == 'head':
-                print('    '*(indent['struct']+1)+'— [x] '+fname_curr+';');
-                struct.append('%%'+'    '*(indent['struct']+1)+'— [x] '+fname_curr+';');
-            print("----------------------------------------------------------------");
-            print("!!! (PH(p)y)TeX Kompilationsfehler !!!");
-            print("!!! Folgende Datei existiert nicht / ließ sich nicht öffnen:");
-            print("----------------------------------------------------------------");
-            print(src);
-            print("----------------------------------------------------------------");
+                msg = r'''{branch} [x] {fname};'''.format(
+                    branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                    fname  =  fname_curr,
+                );
+                display_message(msg);
+                struct.append('%%' + msg);
+            display_message(
+                r'''
+                -----------------------------------------------------------------
+                !!! (PH(p)y)TeX Kompilationsfehler !!!
+                !!! Folgende Datei existiert nicht / ließ sich nicht öffnen:
+                -----------------------------------------------------------------
+                {fname}
+                -----------------------------------------------------------------
+                '''.format(fname=src),
+                indent='''
+                '''
+            );
             return False;
 
         ## Berechne relative Pfade:
@@ -774,8 +840,12 @@ class phpytexTranspiler(object):
 
         ## Output für Hauptdatei:
         if not mute:
-            print('    '*(indent['struct'] + 1)+'— '+fname_curr+';');
-            struct.append('%%'+'    '*(indent['struct'] + 1)+'— '+fname_curr+';');
+            msg = r'''{branch} {fname};'''.format(
+                branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                fname  = fname_curr,
+            );
+            display_message(msg);
+            struct.append('%%' + msg);
             if not silent:
                 self.____addpytexline(lines=filecontents, verbatim=verbatim, expr=[
                     '',
@@ -939,47 +1009,48 @@ class phpytexTranspiler(object):
                 self.____addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['>>>{}'.format(post_characters)], mode='direkt');
                 continue;
 
-            # Zeile: Python-Code
-            if bool_insidecode and code_language == 'python':
-                if mute:
-                    continue;
-                # Einrückung berechnen:
-                m = re.match(r'^(\s*)(.*)$', line);
-                indent_last = self.INDENTATION.computeOffset(m.group(1));
-                line = self.INDENTCHARACTER*indent_last + m.group(2);
+            # Zeile: Inside Code
+            if bool_insidecode:
+                if code_language == 'python':
+                    if mute:
+                        continue;
+                    # Einrückung berechnen:
+                    m = re.match(r'^(\s*)(.*)$', line);
+                    indent_last = self.INDENTATION.computeOffset(m.group(1));
+                    line = self.INDENTCHARACTER*indent_last + m.group(2);
 
-                # Zeile: Python-Kommentar aber mit evtl. falschem Zeichen (LaTeX, Javascript, etc.).
-                m = re.match(r'^\s*(?:\#|\%|\/\/)(.*)$', line);
-                if m:
-                    line = self.INDENTCHARACTER*indent_last + '#'+m.group(1);
+                    # Zeile: Python-Kommentar aber mit evtl. falschem Zeichen (LaTeX, Javascript, etc.).
+                    m = re.match(r'^\s*(?:\#|\%|\/\/)(.*)$', line);
+                    if m:
+                        line = self.INDENTCHARACTER*indent_last + '#'+m.group(1);
+                        self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
+                        continue;
+
+                    # wenn nicht leer od. Kommentarzeile, dann python-Indent updaten.
+                    self.INDENTATION.last = indent_last;
+
+                    # Zeile: ignore / unignore.
+                    m = re.match(r'^\s*(ignore|unignore)(?:\;|$|\s*\#.*)', line);
+                    if m:
+                        control = m.group(1);
+                        self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[
+                            self.INDENTCHARACTER*self.INDENTATION.last + r"____ignore('set', "+str(control == 'ignore')+r");",
+                        ], mode='direkt');
+                        continue;
+
+                    # Zeile: Kopf eines Indent-Blocks
+                    m = re.match(r'^\s*.*:(?:\s*\#.*|\s*)$', line);
+                    if m:
+                        self.INDENTATION.incrOffset();
+                        self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
+                        continue;
+
+                    # Zeile: sonstiger python Code.
                     self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
                     continue;
-
-                # wenn nicht leer od. Kommentarzeile, dann python-Indent updaten.
-                self.INDENTATION.last = indent_last;
-
-                # Zeile: ignore / unignore.
-                m = re.match(r'^\s*(ignore|unignore)(?:\;|$|\s*\#.*)', line);
-                if m:
-                    control = m.group(1);
-                    self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[
-                        self.INDENTCHARACTER*self.INDENTATION.last + r"____ignore('set', "+str(control == 'ignore')+r");",
-                    ], mode='direkt');
+                else:
+                    # aktuell wird nur py unterstützt
                     continue;
-
-                # Zeile: Kopf eines Indent-Blocks
-                m = re.match(r'^\s*.*:(?:\s*\#.*|\s*)$', line);
-                if m:
-                    self.INDENTATION.incrOffset();
-                    self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
-                    continue;
-
-                # Zeile: sonstiger python Code.
-                self.____addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
-                continue;
-
-            if bool_insidecode: # aktuell wird nur py unterstützt
-                continue;
 
             # Zeile: <<< input... >>>
             m = re.match(r'^(\s*)\<{3}\s*(input(?:_once|_anon|_anon_once|_once_anon|))\s+(.*\S|)\s*\>{3}', line);
@@ -994,14 +1065,23 @@ class phpytexTranspiler(object):
                 if is_bad:
                     self.ERROR = True;
                     erfolg = False;
-                    print("----------------------------------------------------------------");
-                    print("!!! (PH(p)y)TeX Kompilationsfehler !!!");
-                    print("  DATEI: "+fname_curr);
-                    print("  ZEILE: "+str(linenr+1)+" (lokale Position innerhalb Datei).");
-                    print("!!! <<< input >>>-Befehle konnte nicht evaluiert werden !!!");
-                    print("----------------------------------------------------------------");
-                    print(line);
-                    print("----------------------------------------------------------------");
+                    display_message(
+                        r'''
+                        -----------------------------------------------------------------
+                        !!! (PH(p)y)TeX Kompilationsfehler !!!
+                          DATEI: {fname}
+                          ZEILE: {lineno} (lokale Position innerhalb Datei).
+                        !!! <<< input >>>-Befehle konnte nicht evaluiert werden !!!
+                        -----------------------------------------------------------------
+                        '''.format(
+                            fname  = fname_curr,
+                            lineno = linenr+1,
+                        ),
+                        indent='''
+                        '''
+                    );
+                    display_message(line);
+                    display_message(r'''-----------------------------------------------------------------''');
                     continue;
 
                 nom, _, _ = self.____extractfilename(path=nom_sub, root=root, relative=False);
@@ -1039,8 +1119,9 @@ class phpytexTranspiler(object):
                     else:
                         indent_[key] = self.INDENTCODE;
 
-                print('    '*(indent_['struct']+1)+'|');
-                struct.append('%%'+'    '*(indent_['struct']+1)+'|');
+                msg = r'''{branch}'''.format(branch = '    '*indent['struct'] + '    |');
+                display_message(msg);
+                struct.append('%%' + msg);
                 erfolg_ = self.____knit(filecontents=filecontents, verbatim=verbatim, struct=struct, filename=filename_, anon=anon_, mute=mute, silent=silent, indent=indent_, params=params, dateityp=ext, chain=chain_[::]);
                 erfolg = erfolg and erfolg_;
 
@@ -1065,14 +1146,23 @@ class phpytexTranspiler(object):
                 if is_bad:
                     self.ERROR = True;
                     erfolg = False;
-                    print("----------------------------------------------------------------");
-                    print("!!! (PH(p)y)TeX Kompilationsfehler !!!");
-                    print("  DATEI: "+fname_curr);
-                    print("  ZEILE: "+str(linenr+1)+" (lokale Position innerhalb Datei).");
-                    print("!!! <<< bibliography >>>-Befehl konnte nicht evaluiert werden !!!");
-                    print("----------------------------------------------------------------");
-                    print(line);
-                    print("----------------------------------------------------------------");
+                    display_message(
+                        r'''
+                        -----------------------------------------------------------------
+                        !!! (PH(p)y)TeX Kompilationsfehler !!!
+                          DATEI: {fname}
+                          ZEILE: {lineno} (lokale Position innerhalb Datei).
+                        !!! <<< bibliography >>>-Befehl konnte nicht evaluiert werden !!!
+                        -----------------------------------------------------------------
+                        '''.format(
+                            fname  = fname_curr,
+                            lineno = linenr+1,
+                        ),
+                        indent='''
+                        '''
+                    );
+                    display_message(line);
+                    display_message(r'''-----------------------------------------------------------------''');
                     continue;
 
                 nom, _, _  = self.____extractfilename(path=nom_sub, root=root, relative=False, ext='bib');
@@ -1103,10 +1193,16 @@ class phpytexTranspiler(object):
                 if not mute:
                     if anon:
                         nom = self.____censorpath(path=nom);
-                    print('    '*(indent_['struct']+1)+'|');
-                    print('    '*(indent_['struct']+1)+'— '+nom+';');
-                    struct.append('%%'+'    '*(indent_['struct']+1)+'|');
-                    struct.append('%%'+'    '*(indent_['struct']+1)+'— '+nom+';');
+                    msg = r'''{branch}'''.format(branch = '    '*indent['struct'] + '    |');
+                    display_message(msg);
+                    struct.append('%%' + msg);
+                    msg = r'''{branch} {fname};'''.format(
+                        branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                        fname  = nom,
+                    );
+                    display_message(msg);
+                    struct.append('%%' + msg);
+
                     if not silent:
                         self.____addpytexline(lines=filecontents, verbatim=verbatim, expr=[
                             '',
@@ -1160,7 +1256,15 @@ class phpytexTranspiler(object):
             verbatim += [(linenr, ignore, line) for line in expr];
         return;
 
-    def ____extractfilename(self, path: str, root=None, split=False, relative=None, relative_to=None, ext=None) -> Tuple[str, str, str]:
+    def ____extractfilename(
+        self,
+        path: str,
+        root=None,
+        split=False,
+        relative=None,
+        relative_to=None,
+        ext=None
+    ) -> Tuple[str, str, str]:
         if not isinstance(root, str):
             root = self.ROOTDIR;
 
@@ -1199,7 +1303,7 @@ class phpytexTranspiler(object):
             return path, root, fname;
         return path, '', '';
 
-    def ____expandquickpython(self, expr='', contains_latex=False, evaluate=True):
+    def ____expandquickpython(self, expr='', contains_latex=False, evaluate=True) -> Tuple[Any, bool]:
         # re_meta = r'(\<{3}(?:(?![<>]).)*\>{3})'; # <— problematisch!
         re_meta = r'(\<{3}(?![\<|\`])(?:(?!(?:\<{3}|\>{3})).)*\>{3})';
         is_bad = False;
@@ -1252,7 +1356,7 @@ class phpytexTranspiler(object):
     # 	is_bad = True;
     # 	return s, is_bad;
 
-    def ____postcompile(self, key=None, val='', indent=None, symbolic=True, set_precompile=False):
+    def ____postcompile(self, key=None, val='', indent=None, symbolic=True, set_precompile=False) -> List[str]:
         if len(key) == 0:
             return [];
 
@@ -1280,10 +1384,10 @@ class phpytexTranspiler(object):
 
         return [line];
 
-    def ____remove_quotes(self, s: str):
+    def ____remove_quotes(self, s: str) -> str:
         return re.sub(r'^[\'\"]+|[\'\"]+$', '', s);
 
-    def ____escapecharacters(self, s: str):
+    def ____escapecharacters(self, s: str) -> str:
         s = re.sub(r'(\\+)', r'\1\1', s);
         s = re.sub(r'\n', r'\\n', s);
         s = re.sub(r'\t', r'\\t', s);
@@ -1293,7 +1397,7 @@ class phpytexTranspiler(object):
         return s;
 
     ## verwandelt Strings in starke Metastrings:
-    def ____metastring(self, s: str):
+    def ____metastring(self, s: str) -> str:
         meta = "r''";
         s = re.sub(r'(\\+)', r'\1\1', s);
         s = re.sub(r'\n', r'\\n', s);
@@ -1309,7 +1413,7 @@ class phpytexTranspiler(object):
             meta = meta[4:]
         return meta;
 
-    def ____metaprint(self, indent=None, linenr=None, expr='', keep_indent=False, anon=False):
+    def ____metaprint(self, indent=None, linenr=None, expr='', keep_indent=False, anon=False) -> List[str]:
         if indent is None or indent < self.INDENTCODE:
             indent = self.INDENTCODE;
         expr = self.____metastring(expr);
@@ -1321,7 +1425,7 @@ class phpytexTranspiler(object):
         lines = [self.INDENTCHARACTER*indent + line];
         return lines;
 
-    def ____censorpath(self, path: str):
+    def ____censorpath(self, path: str) -> str:
         # return '#'*len(path);
         return '#'*self.CENSORLENGTH;
 
@@ -1382,5 +1486,40 @@ class phpytexTranspiler(object):
         return language, flags[1:], parameters;
     pass;
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# MISCELLANEOUS METHODS
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-phpytexTranspiler().run();
+def display_error(*x: Any, file=sys.stderr):
+    print(*x, file=file);
+
+def string_long(*text: str, indent: str = '') -> List[str]:
+    lines = [];
+    if indent == '':
+        for _ in text:
+            for line in _.split('\n')[1:][:-1]:
+                lines.append(line);
+    else:
+        indent = ([_ for _ in indent.split('\n') if  not _ == ''] + [''])[0];
+        n = len(indent);
+        for _ in text:
+            for line in _.split('\n')[1:][:-1]:
+                if line.startswith(indent):
+                    line = line[n:];
+                lines.append(line);
+    return lines;
+
+def display_message(*text: Any, indent = None, file = sys.stdout):
+    lines = [str(_) for _ in text];
+    if isinstance(indent, str):
+        lines = string_long(*lines, indent=indent);
+    for line in lines:
+        print(line, file=file);
+    pass;
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# EXECUTION
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+if __name__ == '__main__':
+    main();
