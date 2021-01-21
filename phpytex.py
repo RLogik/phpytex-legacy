@@ -753,7 +753,7 @@ class phpytexTranspiler(object):
         if src in chain:
             self.display_state_of_tree(
                 r'''{branch} [∞] {fname}; (∞-Schleife! Datei wird nicht hinzugefügt!)'''.format(
-                    branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                    branch = '    '*indent['struct'] + ('   -' if indent['struct'] == 0 else '-'*4),
                     fname  =  fname_curr,
                 )
             );
@@ -765,7 +765,7 @@ class phpytexTranspiler(object):
             if not dateityp == 'head':
                 self.display_state_of_tree(
                     r'''{branch} [x] {fname};'''.format(
-                        branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                        branch = '    '*indent['struct'] + ('   -' if indent['struct'] == 0 else '-'*4),
                         fname  =  fname_curr,
                     )
                 );
@@ -804,7 +804,7 @@ class phpytexTranspiler(object):
         if not mute:
             self.display_state_of_tree(
                 r'''{branch} {fname};'''.format(
-                    branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                    branch = '    '*indent['struct'] + ('   -' if indent['struct'] == 0 else '-'*4),
                     fname  = fname_curr,
                 )
             );
@@ -1168,7 +1168,7 @@ class phpytexTranspiler(object):
                     self.display_state_of_tree(r'''{branch}'''.format(branch = '    '*indent['struct'] + '    |'));
                     self.display_state_of_tree(
                         r'''{branch} {fname};'''.format(
-                            branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                            branch = '    '*indent['struct'] + ('   -' if indent['struct'] == 0 else '-'*4),
                             fname  = nom,
                         )
                     );
