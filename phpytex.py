@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 21.1.2021                                              #
-# VERSION: 3·2·1                                                            #
+# ZULETZT VERÄNDERT: 20.1.2021                                              #
+# VERSION: 3·2·0                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -517,7 +517,7 @@ class phpytexTranspiler(object):
                                 pass;
                         except:
                             biblines = None;
-                            print('ACHTUNG! Bib-Datei {{'+src+'}} konnte nicht gefunden werden');
+                            print('ACHTUNG! Bib-Datei \033[1m{{fname}}\033[0m konnte nicht gefunden werden'.format(fname=src));
                         bibtext[src] = biblines;
                         pass;
 
