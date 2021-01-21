@@ -684,8 +684,6 @@ class phpytexTranspiler(object):
             struct = self.STRUCTURE[:]
             self.STRUCTURE = [];
             erfolg = self.knit(filecontents=preamble, verbatim=verbatim, mute=True, filename={'src':self.STAMPDATEI, 'main':None}, params=params, dateityp='head');
-            if not self.ERROR:
-                self.addpytexline(lines=preamble, verbatim=verbatim, expr=[''], mode='meta');
             self.STRUCTURE = struct[:];
 
         if not erfolg:
@@ -753,7 +751,7 @@ class phpytexTranspiler(object):
         if src in chain:
             self.display_state_of_tree(
                 r'''{branch} [∞] {fname}; (∞-Schleife! Datei wird nicht hinzugefügt!)'''.format(
-                    branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                    branch = '    '*indent['struct'] + ('   -' if indent['struct'] == 0 else '-'*4),
                     fname  =  fname_curr,
                 )
             );
@@ -765,7 +763,7 @@ class phpytexTranspiler(object):
             if not dateityp == 'head':
                 self.display_state_of_tree(
                     r'''{branch} [x] {fname};'''.format(
-                        branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                        branch = '    '*indent['struct'] + ('   -' if indent['struct'] == 0 else '-'*4),
                         fname  =  fname_curr,
                     )
                 );
@@ -804,7 +802,7 @@ class phpytexTranspiler(object):
         if not mute:
             self.display_state_of_tree(
                 r'''{branch} {fname};'''.format(
-                    branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                    branch = '    '*indent['struct'] + ('   -' if indent['struct'] == 0 else '-'*4),
                     fname  = fname_curr,
                 )
             );
@@ -827,7 +825,7 @@ class phpytexTranspiler(object):
         code_option_print: bool = False;
         pre_characters: str = '';
 
-        for linenr, line in enumerate(lines):
+        for linenr, line in enumerate(lines + ['']):
             if self.ERROR:
                 break;
 
@@ -1168,7 +1166,7 @@ class phpytexTranspiler(object):
                     self.display_state_of_tree(r'''{branch}'''.format(branch = '    '*indent['struct'] + '    |'));
                     self.display_state_of_tree(
                         r'''{branch} {fname};'''.format(
-                            branch = '    '*indent['struct'] + ('-' if indent['struct'] == 0 else '-'*4),
+                            branch = '    '*(indent['struct'] + 1) + ('   -' if indent['struct'] == 0 else '-'*4),
                             fname  = nom,
                         )
                     );
