@@ -551,9 +551,8 @@ class phpytexTranspiler(object):
                 pass;
 
             try:
-                ____filetex____ = open(____filetex_name____, 'w+');
-                ____compilephpytex();
-                ____filetex____.close();
+                with open(____filetex_name____, 'w+') as ____filetex____:
+                    ____compilephpytex();
                 if ____compilelatex____:
                     ____compilelatex();
                 else:
@@ -593,24 +592,20 @@ class phpytexTranspiler(object):
     def execmetacode(self, lines=[], fname='', debug=False, cmpl=False):
         lines = self.createmetacode(lines=lines, fname=fname, cmpl=cmpl);
         fname_rel, _, _ = extractfilename(path=fname, relative=True, ext='');
-        ____filetex____ = open(fname, 'w+');
-        ____filetex____.write('\n'.join(lines));
-        ____filetex____.close();
+        with open(fname, 'w+') as ____filetex____:
+            ____filetex____.write('\n'.join(lines));
 
         if debug:
             display_message('''Siehe Outputdatei: \033[1m{fname}.tex\033[0m'''.format(fname=fname_rel));
             return;
 
         try:
-            ## Former method: Removed---avoid usage of 'exec'!!
-            # code = compile('\n'.join(lines), '<string>', mode='exec');
-            # exec(code);
             proc = subprocess.Popen(['python3', fname_rel+'.tex']);
             proc.wait();
         except:
             self.ERROR = True;
             self.PYERROR = True;
-            typ, err, tb = sys.exc_info();
+            _, err, tb = sys.exc_info();
 
             try:
                 n = tb.tb_lineno - 1 if isinstance(err, TracebackType) else 0;
@@ -655,7 +650,7 @@ class phpytexTranspiler(object):
 
                 ## print to main tex file:
                 with open(fname, 'w+') as fp:
-                    display_message(*[line for k, ignore, line in precompilelines if k < n and not ignore is True], file=fp);
+                    display_message(*[line for k, ignore, line in precompilelines if k < n and not (ignore is True)], file=fp);
                     display_message(
                         r'''
                         -----------------------------------------------------------------
@@ -706,7 +701,7 @@ class phpytexTranspiler(object):
                 '%%',
                 '%% DOCUMENT-RANDOM-SEED: '+str(self.SEED),
                 '%% ********************************************************************************',
-            ], mode='meta');
+            ], anon=False, mode='meta');
 
         lines = preamble + lines;
         self.PRECOMPILELINES = verbatim + self.PRECOMPILELINES;
@@ -820,7 +815,7 @@ class phpytexTranspiler(object):
                     '%% FILE: {name}'.format(name=fname_curr),
                     '%% ********************************************************************************',
                     '',
-                ], indent=self.INDENTATION.last, mode='meta');
+                ], indent=self.INDENTATION.last, anon=anon, mode='meta');
 
         ## Zeilen einlesen und interpretieren:
         erfolg = True;
@@ -1185,7 +1180,7 @@ class phpytexTranspiler(object):
                             '%% FILE: {name}'.format(name=nom),
                             '%% ********************************************************************************',
                             '',
-                        ], indent=self.INDENTATION.last, mode='meta');
+                        ], indent=self.INDENTATION.last, anon=anon, mode='meta');
 
                 self.addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
                 continue;
