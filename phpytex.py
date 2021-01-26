@@ -77,8 +77,8 @@ class phpytexIndentation(object):
 
     def reset(self):
         self.reference = 0;
-        self.start = 1;
-        self.last  = 1;
+        self.start     = 1;
+        self.last      = 1;
 
     def computeIndentations(self, s: str, pattern = None) -> int:
         pattern = pattern if isinstance(pattern, str) else self.pattern;
@@ -923,8 +923,8 @@ class phpytexTranspiler(object):
             #   continue;
 
             # Zeile: Start eines Codeblocks
-            m = re.match(r'^(\s*)(.*)(?:\<{3}|\`{3})\s*((?![\<\`]).*\S|)\s*$', line);
-            m_bad = re.match(r'^\s*(?:\<{4}|\`{4})', line);
+            m        = re.match(r'^(\s*)(.*)(?:\<{3}|\`{3})\s*((?![\<\`]).*\S|)\s*$', line);
+            m_bad    = re.match(r'^\s*(?:\<{4}|\`{4})', line);
             m_inline = re.match(r'^\s*(.*)(?:\<{3}|\`{3}).*(?:\>{3}|\`{3})', line);
             if m and not m_bad and not m_inline:
                 if mute:
@@ -937,21 +937,28 @@ class phpytexTranspiler(object):
                 ## Set indentation level. If within print=true set, use previous indentation level:
                 if code_option_print:
                     self.INDENTATION.reference = self.INDENTATION.computeIndentations(inline_indentation) - self.INDENTATION.last;
-                    self.INDENTATION.start = self.INDENTATION.last;
+                    self.INDENTATION.start     = self.INDENTATION.last;
                     self.addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
                         '''{indent_py}____temp_value____ = \\'''.format(
                             indent_py  = self.INDENTCHARACTER*self.INDENTATION.last
                         ),
                     ], mode='direkt');
                 else:
-                    self.INDENTATION.initOffset(inline_indentation);
                     ## TODO: need to update tex-indentation at start of python blocks, avoiding conflicting python-indentation within e.g. if/else.
+                    ##       The current solution works, but is not tidy.
+                    self.addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
+                        '''{indent_py}____indentation____ = '{indent_tex}';'''.format(
+                            indent_py = self.INDENTCHARACTER*self.INDENTATION.last,
+                            indent_tex = inline_indentation,
+                        ),
+                    ], mode='direkt');
+                    self.INDENTATION.initOffset(inline_indentation);
                 self.addpytexline(ignore=-1, lines=[], verbatim=verbatim, linenr=linenr, expr=['{}<<< {}'.format(pre_characters, code_language)], mode='direkt');
                 continue;
 
             # Zeile: Ende eines Codeblocks
-            m = re.match(r'^\s*(?:\>{3}|\`{3})(.*)$', line);
-            m_bad = re.match(r'^\s*(?:\>{4}|\`{4})', line);
+            m        = re.match(r'^\s*(?:\>{3}|\`{3})(.*)$', line);
+            m_bad    = re.match(r'^\s*(?:\>{4}|\`{4})', line);
             m_inline = re.match(r'^\s*(.*)(?:\<{3}|\`{3}).*(?:\>{3}|\`{3})', line);
             if m and not m_bad and not m_inline:
                 if mute:
@@ -1104,7 +1111,7 @@ class phpytexTranspiler(object):
                 continue;
 
             # Zeile: <<< bibliography... >>>
-            m = re.match(r'^(\s*)\<{3}\s*(bibliography(?:_once|_anon|_anon_once|_once_anon|))\s+(.*\S|)\s*\>{3}', line);
+            m   = re.match(r'^(\s*)\<{3}\s*(bibliography(?:_once|_anon|_anon_once|_once_anon|))\s+(.*\S|)\s*\>{3}', line);
             nom = None;
             if m:
                 tex_indent = m.group(1);
@@ -1237,7 +1244,7 @@ class phpytexTranspiler(object):
             verbatim += [(linenr, ignore, line) for line in expr];
         return;
 
-    def expandquickpython(self, expr='', contains_latex=False, evaluate=True) -> Tuple[Any, bool]:
+    def expandquickpython(self, expr: str, contains_latex: bool = False, evaluate: bool = True) -> Tuple[Any, bool]:
         # re_meta = r'(\<{3}(?:(?![<>]).)*\>{3})'; # <— problematisch!
         re_meta = r'(\<{3}(?![\<|\`])(?:(?!(?:\<{3}|\>{3})).)*\>{3})';
         is_bad = False;
@@ -1250,7 +1257,7 @@ class phpytexTranspiler(object):
                 m = re.match(r'^\<{3}((?![\<|\`])(?:(?!(?:\<{3}|\>{3})).)*)\>{3}$', u);
                 if m:
                     has_subs = True;
-                    u = m.group(1);
+                    u = str(m.group(1));
                     u = re.sub(r'^[\s\?\=]+|[\s\;]+$', '', u);
                     if u == '':
                         continue;
@@ -1286,13 +1293,19 @@ class phpytexTranspiler(object):
 
         return expr, is_bad;
 
-    def postcompile(self, key=None, val='', indent=1, symbolic=True, set_precompile=False) -> List[str]:
+    def postcompile(self,
+        key:            str,
+        val:            Any,
+        indent:         int  = 1,
+        symbolic:       bool = True,
+        set_precompile: bool = False
+    )-> List[str]:
         if len(key) == 0:
             return [];
 
         is_bad = False;
         if symbolic:
-            if len(val) == 0:
+            if isinstance(val, str) and len(val) == 0:
                 val = None;
             if isinstance(val, str):
                 val, is_bad = self.expandquickpython(expr=val);
@@ -1397,7 +1410,9 @@ def extractfilename(path: str, root=None, split=False, relative=None, relative_t
         path = os.path.abspath(os.path.normpath(path));
 
     if relative:
-        root = relative_to if isinstance(relative_to, str) else ROOTDIR;
+        root = relative_to;
+        if not isinstance(root, str):
+            root = ROOTDIR;
         root = os.path.abspath(os.path.normpath(root));
         root_parts = re.split(r'/+', re.sub('^/+', '', root));
         path_parts = re.split(r'/+', re.sub('^/+', '', path));
