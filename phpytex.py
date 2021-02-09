@@ -1168,7 +1168,7 @@ class phpytexTranspiler(object):
                 );
 
                 if not mute:
-                    if anon:
+                    if anon_:
                         nom = self.censorpath(path=nom);
                     self.display_state_of_tree(r'''{branch}'''.format(branch = '    '*indent['struct'] + '    |'));
                     self.display_state_of_tree(
