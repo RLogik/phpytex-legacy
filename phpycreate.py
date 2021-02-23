@@ -5,8 +5,8 @@
 # FILE: (PH(p)y)create
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
-# LAST CHANGED: 10.09.2020
-# VERSION: 1·1·4
+# LAST CHANGED: 23.02.2021
+# VERSION: 1·1·5
 # NOTES:
 #
 #     Installation:
@@ -550,7 +550,8 @@ def make_file_if_not_exists(fname: str, path: str = None) -> bool:
     path = path or os.getcwd();
     fexists = os.path.isfile(os.path.join(path, fname));
     if fexists:
-        message_to_console('  \033[33mSkipping creation of file\033[0m \033[96;1m{}\033[0m ⟶ already exists!'.format(fname));
+        # message_to_console('  \033[33mSkipping creation of file\033[0m \033[96;1m{}\033[0m ⟶ already exists!'.format(fname));
+        pass;
     else:
         message_to_console('  File \033[96;1m{}\033[0m will be created.'.format(fname));
         Popen(['touch', fname], cwd=path).wait();
@@ -560,7 +561,8 @@ def make_dir_if_not_exists(dir_name: str, path: str = None) -> bool:
     path = path or os.getcwd();
     fexists = os.path.isdir(os.path.join(path, dir_name));
     if fexists:
-        message_to_console('  \033[33mSkipping creation of folder\033[0m \033[96;1m{}\033[0m ⟶ already exists!'.format(dir_name));
+        # message_to_console('  \033[33mSkipping creation of folder\033[0m \033[96;1m{}\033[0m ⟶ already exists!'.format(dir_name));
+        pass;
     else:
         message_to_console('  Folder \033[96;1m{}\033[0m will be created.'.format(dir_name));
         Popen(['mkdir', '-p', dir_name], cwd=path).wait();
@@ -608,6 +610,9 @@ def get_dict_value(obj, key: Union[str,List[str]], *keys: Union[str,List[str]], 
 
 def to_python_string(value) -> Union[str, None]:
     if isinstance(value, str):
+        lines = re.split(r'\n', value);
+        if len(lines) > 1:
+            return r"+'\n'+".join(["r'{}'".format(_) for _ in lines]);
         return "r'{}'".format(value);
     elif isinstance(value, (int, float, bool, EvalType)) or value is None:
         return str(value);
