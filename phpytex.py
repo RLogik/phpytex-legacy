@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 20.1.2021                                              #
-# VERSION: 3·2·0                                                            #
+# ZULETZT VERÄNDERT: 23.2.2021                                              #
+# VERSION: 3·2·1                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -450,17 +450,29 @@ class phpytexTranspiler(object):
                     ____lines____['bib'][src].append(n-1);
                 pass;
 
+            def pipeCall(*_args, cwd = None):
+                args = [_ for _ in _args];
+                cmd = ' '.join(args);
+                if not isinstance(cwd, str):
+                    cwd = ____rootdir____;
+                pipe = subprocess.Popen(args, cwd=cwd);
+                pipe.wait();
+                if pipe.returncode == 0:
+                    return;
+                raise Exception('Shell command < \033[94;1m{{}}\033[0m > failed.'.format(cmd));
+
             ## PDFLATEX:
             def ____compilelatex():
                 print('\n\nPDFLATEX WIRD AUSGEFÜHRT:');
                 outfile, _ = os.path.splitext(____filetex_name____);
-                proc = subprocess.Popen(['pdflatex', outfile], cwd=____rootdir____);
-                proc.wait();
+                # pipeCall('pdflatex', '-interaction=scrollmode', outfile);
+                # pipeCall('pdflatex', '-interaction=batchmode', outfile);
+                pipeCall('pdflatex', '-interaction=errorstopmode', outfile);
+                # pipeCall('pdflatex', '-interaction=nonstopmode', outfile);
                 print('\n\nBIBTEX WIRD AUSGEFÜHRT:');
                 for src in ____lines____['bib']:
                     src, _ = os.path.splitext(src);
-                    proc = subprocess.Popen(['bibtex', src], cwd=____rootdir____);
-                    proc.wait();
+                    pipeCall('bibtex', src);
                 print('\n\nDOKUMENT \033[1m{{fname}}.pdf\033[0m WURDE FERTIGGESTELLT.'.format(fname=____filetex_name_rel____));
                 pass;
 
@@ -559,6 +571,7 @@ class phpytexTranspiler(object):
                     print('\nPDFLATEX WIRD NICHT AUSGEFÜHRT.');
                 ____cleanlatex();
             except Exception as e:
+                ## Provide information, then exit with status 1.
                 print("-----------------------------------------------------------------");
                 print("!!! (PH(p)y)TeX Kompilationsfehler !!!");
                 if ____error_eval____:
@@ -579,9 +592,10 @@ class phpytexTranspiler(object):
                     ____forceprint("-----------------------------------------------------------------");
                 else:
                     print("-----------------------------------------------------------------");
-                    print(sys.exc_info())
-                    print(e)
+                    # print(sys.exc_info());
+                    print(e);
                     print("-----------------------------------------------------------------");
+                exit(1);
 
             ''',
             indent='''
@@ -600,8 +614,7 @@ class phpytexTranspiler(object):
             return;
 
         try:
-            proc = subprocess.Popen(['python3', fname_rel+'.tex']);
-            proc.wait();
+            pipeCall('python3', fname_rel+'.tex', errormsg='Phpytex transpilation/compilation error.');
         except:
             self.ERROR = True;
             self.PYERROR = True;
@@ -670,7 +683,9 @@ class phpytexTranspiler(object):
                     display_message('', *[line for k, ignore, line in precompilelines if k == n and ignore is False], file=fp);
                     display_message(r'''-----------------------------------------------------------------''', file=fp);
             except:
+                ## Provide information, then exit with status 1.
                 display_error(err);
+                exit(1);
 
         return;
 
@@ -1332,6 +1347,17 @@ class phpytexTranspiler(object):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # MISCELLANEOUS METHODS
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def pipeCall(*_args, cwd = None, errormsg: str):
+    args = [_ for _ in _args];
+    cmd = ' '.join(args);
+    if not isinstance(cwd, str):
+        cwd = os.getcwd();
+    pipe = subprocess.Popen(args, cwd=cwd);
+    pipe.wait();
+    if pipe.returncode == 0:
+        return;
+    raise Exception(errormsg);
 
 def display_error(*x: Any, file=sys.stderr):
     print(*x, file=file);
