@@ -255,6 +255,7 @@ class phpytexTranspiler(object):
         fname_rel, _, _ = extractfilename(path=fname, relative=True, ext='');
         lines_pre = string_long(
             r'''
+            from __future__ import annotations;
             import sys;
             import os;
             import re;
@@ -1350,7 +1351,6 @@ class phpytexTranspiler(object):
 
 def pipeCall(*_args, cwd = None, errormsg: str):
     args = [_ for _ in _args];
-    cmd = ' '.join(args);
     if not isinstance(cwd, str):
         cwd = os.getcwd();
     pipe = subprocess.Popen(args, cwd=cwd);
