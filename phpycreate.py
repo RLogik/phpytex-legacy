@@ -5,8 +5,8 @@
 # FILE: (PH(p)y)create
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
-# LAST CHANGED: 23.02.2021
-# VERSION: 1·1·5
+# LAST CHANGED: 05.03.2021
+# VERSION: 1·2·0
 # NOTES:
 #
 #     Installation:
@@ -44,6 +44,7 @@ console_quiet = False;
 PHPYCREATE_VERSION = '1·1·4';
 FILE_EXT_PPTSTRUCT = r'\.phpycreate\.(yml|yaml)';
 FILE_EXT_PPTIGNORE = r'\.phpycreate\.ignore';
+INDENT: str = '    ';
 
 # --------------------------------------------------------------------------------
 # PRIMARY METHOD
@@ -321,6 +322,10 @@ def get_structure_yamls(path: str, recursive: bool) -> Tuple[bool, List[Tuple[st
     return True, structures;
 
 def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
+    if is_root:
+        options = get_dict_value(struct, 'compile', 'options', default=None);
+        set_indentation(options);
+
     # create files:
     files = get_dict_value(struct, 'files', typ=[list, dict], default=[]);
     for _, fname, _ in get_names(files):
@@ -350,7 +355,7 @@ def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
         overwrite = get_dict_value(struct, 'parameters', 'overwrite', typ=bool, default=False);
         if not fexists or overwrite:
             options = get_dict_value(struct, 'parameters', 'options', typ=dict, default={});
-            lines   = create_parameters(options);
+            lines   = create_parameters(options, multiline=False);
             write_lines(lines, fname, path);
 
     if not is_root:
@@ -368,6 +373,7 @@ def crunch_structure_yaml(path: str, struct: Dict[str, Any], is_root: bool):
             input          = file_input,
             stamp          = file_stamp,
             output         = file_output,
+            exportparams   = get_dict_value(options, ['export-params', 'params'],     typ=str,                   default=None),
             show_python    = get_dict_value(options, ['debug', 'show-python'],        typ=bool,                  default=False),
             compile_latex  = get_dict_value(options, ['latex', 'compile-latex'],      typ=bool,                  default=True),
             insert_bib     = get_dict_value(options, ['insert-bib'],                  typ=bool,                  default=False),
@@ -415,19 +421,26 @@ def create_stamp(options: dict) -> List[str]:
 
     return lines;
 
-def create_parameters(options: dict) -> List[str]:
+def create_parameters(options: dict, multiline: bool = False) -> List[str]:
+    ## force multiline = False!
+    multiline = False;
     lines = [];
     for key in options:
-        value = to_python_string(options[key]);
-        if not isinstance(value, str):
+        try:
+            typ, value = to_python_string(options[key], indent=0, multiline=multiline);
+            # if isinstance(typ, str):
+            #     lines += ['<<< set {key}: {type} = {value}; >>>'.format(type = typ, key = key, value = value)];
+            # else:
+            lines += ['<<< set {key} = {value}; >>>'.format(key = key, value = value)];
+        except:
             continue;
-        lines += ['<<< set {} = {}; >>>'.format(key, value)];
     return lines;
 
 def create_startscript(
     input: str,
     stamp: Union[str, None],
     output: str,
+    exportparams: Union[str, None],
     show_python: bool,
     compile_latex: bool,
     insert_bib: bool,
@@ -445,6 +458,9 @@ def create_startscript(
     if isinstance(stamp, str):
         command += ['-head', stamp];
     command += ['-o', output];
+    # add export-params?
+    if isinstance(exportparams, str):
+        command += ['-export-params', exportparams];
     # debug? compile latex?
     if show_python:
         command += ['-debug'];
@@ -488,6 +504,17 @@ def create_folders(dir_name: str, struct: dict, path: str):
         make_dir_if_not_exists(dir_name_, subpath);
         create_folders(dir_name_, struct_ or {}, subpath);
     return;
+
+def set_indentation(options: Any):
+    global INDENT;
+    tabs   = get_dict_value(options, ['tabs'],   typ=bool, default=False);
+    spaces = get_dict_value(options, ['spaces'], typ=int,  default=4);
+    if tabs:
+        INDENT = '\t';
+    else:
+        INDENT = ' '*spaces;
+    return;
+
 
 # --------------------------------------------------------------------------------
 # LOCAL CLASSES
@@ -608,27 +635,44 @@ def get_dict_value(obj, key: Union[str,List[str]], *keys: Union[str,List[str]], 
         return default;
     return obj_;
 
-def to_python_string(value) -> Union[str, None]:
+def to_python_string(value, indent=0, multiline=False) -> Tuple[Union[str, None], str]:
+    typ = None;
     if isinstance(value, str):
+        typ = 'str';
         lines = re.split(r'\n', value);
         if len(lines) > 1:
-            return r"+'\n'+".join(["r'{}'".format(_) for _ in lines]);
-        return "r'{}'".format(value);
+            sep = "\n{}".format(INDENT*indent) if multiline else r"+'\n'+";
+            return typ, sep.join(["r'{}'".format(_) for _ in lines]);
+        return typ, "r'{}'".format(value);
     elif isinstance(value, (int, float, bool, EvalType)) or value is None:
-        return str(value);
+        if isinstance(value, int):
+            typ = 'int';
+        elif isinstance(value, float):
+            typ = 'float';
+        elif isinstance(value, bool):
+            typ = 'bool';
+        return typ, str(value);
     elif isinstance(value, list):
-        values = [to_python_string(_) for _ in value];
-        if None in values:
-            return None;
-        return '[' + ', '.join([x for x in values if isinstance(x, str)]) + ']';
+        typ = 'list';
+        values = [to_python_string(_, indent+1, multiline)[1] for _ in value];
+        if multiline and len(values) > 1:
+            sep0 = "\n{}".format(INDENT*indent);
+            sep1 = "\n{}".format(INDENT*(indent+1));
+            return typ, '[' +  sep1 \
+                + (',' + sep1).join(values) + ',' \
+                + sep0 + ']';
+        return typ, '[' + ', '.join(values) + ']';
     elif isinstance(value, dict):
-        values = [(_, to_python_string(value[_])) for _ in value];
-        for _, __ in values:
-            if __ is None:
-                return None;
-        return '{' + ', '.join(["'{}': {}".format(_, __) for _, __ in values]) + '}';
-        # return 'dict(' + ', '.join(["'{}': {}".format(_, __) for _, __ in values]) + ')';
-    return None;
+        typ = 'dict';
+        values = [(_, to_python_string(value[_], indent+1, multiline)[1]) for _ in value];
+        if multiline and len(values) > 1:
+            sep0 = "\n{}".format(INDENT*indent);
+            sep1 = "\n{}".format(INDENT*(indent+1));
+            return typ, '{' +  sep1 \
+                + (',' + sep1).join(["'{}': {}".format(_, __) for _, __ in values]) + ',' \
+                + sep0 + '}';
+        return typ, '{' + ', '.join(["'{}': {}".format(_, __) for _, __ in values]) + '}';
+    raise Exception('Could not evaluated value as string');
 
 def message_to_console(message: str, force=False):
     global console_quiet;

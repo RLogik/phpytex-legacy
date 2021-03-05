@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 23.2.2021                                              #
-# VERSION: 3·2·1                                                            #
+# ZULETZT VERÄNDERT: 05.03.2021                                             #
+# VERSION: 3·3·0                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -32,12 +32,14 @@ import os;
 import re;
 import subprocess;
 
+import json;
 from types import TracebackType;
 from typing import Dict;
 from typing import List;
 from typing import Tuple;
 from typing import Union;
 from typing import Any;
+from pathlib import Path;
 import numpy;
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -107,6 +109,7 @@ class phpytexIndentation(object):
 class phpytexTranspiler(object):
     ## GLOBALE VARIABLE
     GLOBALVARS:         Dict[str, Any]   = {'__ROOT__':'.', '__DIR__':'.'};
+    EXPORTVARS:         List[str]        = [];
     INCLUDES:           List[str]        = [];
     INSERTBIB:          bool             = False;
     ERROR:              bool             = False;
@@ -114,6 +117,9 @@ class phpytexTranspiler(object):
     STAMPDATEI:         str;
     HAUPTDATEI:         str;
     OUTPUTDATEI:        str;
+    EXPORTPARAMS:       bool             = False;
+    PARAMDATEI:         str;
+    PARAM_PY_IMPORT:    str;
     LENPRECODE:         int              = 0;
     LENGTHOFOUTPUT:     int              = 0; ## <-- Anzahl der Zeilen.
     MAXLENGTH:          int              = 10000; ## verhindere, dass die Datei zu groß wird.
@@ -133,6 +139,13 @@ class phpytexTranspiler(object):
 
     def __init__(self):
         global ROOTDIR;
+
+        # must initialise arrays!
+        self.EXPORTVARS = [];
+        self.INCLUDES = [];
+        self.PRECOMPILELINES = [];
+        self.STRUCTURE = [];
+
         self.INDENTATION = phpytexIndentation(self.INDENTCHARACTER_re);
         params = get_cli_arguments(*sys.argv);
 
@@ -164,6 +177,10 @@ class phpytexTranspiler(object):
                             ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
                             -path PFAD            Pfad des lokalen Ordners.
                             -head DATEI           Datei mit Latex-Kommentar als Kopfteil.
+                            -export-params        Pfad zu einer Datei, in die globale Parameter exportiert werden.
+                                                  !! Als python Import-Pfad angeben. !!
+                                                  Z. B.
+                                                        `src/params.py` -> `\033[1msrc.params\033[0m`
                             -insert-bib           Inhalte von .bbl-Datei(en) werden eingesetzt anstelle von \\bibliography{...}.
 
                             -debug                Präkompiliertes Pythonskript wird zu Outputdatei geschrieben.
@@ -188,9 +205,14 @@ class phpytexTranspiler(object):
 
         self.HAUPTDATEI = str(params['i']);
         self.OUTPUTDATEI = str(params['o']);
-        if 'path' in params:
-            ROOTDIR = str(params['path']);
-            self.GLOBALVARS['__ROOT__'] = ROOTDIR;
+        if 'export-params' in params:
+            mod = str(params['export-params']);
+            if not re.match(r'^(\S+\.)*\S+$', mod):
+                raise Exception('-export-params option MUST by a python-like import path (relative to the root of the project).');
+            self.EXPORTPARAMS = True;
+            self.PARAM_PY_IMPORT   = mod;
+            self.PARAMDATEI        = re.sub(r'\.', '/', self.PARAM_PY_IMPORT);
+            self.PARAMDATEI, _, _  = extractfilename(path=self.PARAMDATEI, relative=True);
 
         self.HAUPTDATEI, _, _  = extractfilename(path=self.HAUPTDATEI, relative=True);
         self.OUTPUTDATEI, _, _ = extractfilename(path=self.OUTPUTDATEI, relative=True, ext='');
@@ -202,10 +224,10 @@ class phpytexTranspiler(object):
         if 'head' in params:
             self.STAMPDATEI, _, _ = extractfilename(path=str(params['head']), relative=True);
 
-        debug = params['debug'];
-        cmpl = not params['no-compile'];
-        silent = params['silent'];
-        # anon = params['anon']; # <— funktioniert nicht richtig
+        debug  = force_bool(params['debug'], default=False);
+        cmpl   = force_bool(not params['no-compile'], default=False);
+        silent = force_bool(params['silent'], default=False);
+        # anon   = force_bool(params['anon'], default=False); # <— funktioniert nicht richtig
         if 'seed' in params:
             self.SEED = int(params['seed']);
         if 'max-length' in params:
@@ -236,10 +258,24 @@ class phpytexTranspiler(object):
 
         self.INCLUDES = [];
         self.PRECOMPILELINES = [];
-        lines = [];
+        lines      = [];
+        imports    = [];
+        globalvars = [];
         self.STRUCTURE = [];
         numpy.random.seed(self.SEED); ## nur ein Mal ausführen!
-        erfolg = self.knit(filecontents=lines, verbatim=self.PRECOMPILELINES, mute=False, silent=silent, filename={'src':self.HAUPTDATEI, 'main':self.OUTPUTDATEI+'.tex'}, params=params);
+        erfolg = self.knit(
+            filecontents = lines,
+            imports      = imports,
+            globalvars   = globalvars,
+            verbatim     = self.PRECOMPILELINES,
+            mute         = False,
+            silent       = silent,
+            filename     = dict(
+                src      = self.HAUPTDATEI,
+                main     = self.OUTPUTDATEI+'.tex',
+            ),
+            params       = params
+        );
         if not erfolg:
             return;
         lines, erfolg = self.addpreamble(silent=silent, lines=lines, params=params);
@@ -247,11 +283,21 @@ class phpytexTranspiler(object):
             return;
 
         display_message('''\n...Dokumentteile erfolgreich kombiniert.\n''');
-        self.execmetacode(lines=lines, fname=hauptfile, debug=debug, cmpl=cmpl);
+        if self.EXPORTPARAMS:
+            fname_params, _, _ = extractfilename(path=self.PARAMDATEI, relative=True, ext='py');
+            self.export_parameters(fname=fname_params);
+        self.execmetacode(lines=lines, imports=imports, globalvars=globalvars, fname=hauptfile, debug=debug, cmpl=cmpl);
         display_message('''\n\033[92;1m(PH(p)y)TeX\033[0m fertig!\n''');
         return;
 
-    def createmetacode(self, lines=[], fname='', cmpl=False):
+    def createmetacode(
+        self,
+        lines:      List[str] = [],
+        imports:    List[str] = [],
+        globalvars: List[str] = [],
+        fname:      str       = '',
+        cmpl:       bool      = False
+    ):
         fname_rel, _, _ = extractfilename(path=fname, relative=True, ext='');
         lines_pre = string_long(
             r'''
@@ -286,6 +332,21 @@ class phpytexTranspiler(object):
             __LINENR__               = None;
             ____error_eval____       = False;
 
+            '''.format(
+                indentchar   = self.INDENTCHARACTER_re,
+                fname        = fname,
+                fname_rel    = fname_rel,
+                maxlength    = self.MAXLENGTH,
+                insertbib    = self.INSERTBIB,
+                compilelatex = cmpl,
+                rootdir      = ROOTDIR,
+                seed         = self.SEED,
+            ),
+            indent='''
+            '''
+        ) \
+        + string_long(
+            r'''
             ## reseed-funktion:
             def ____reseed():
                 global ____seed____;
@@ -356,14 +417,14 @@ class phpytexTranspiler(object):
                 m = re.match(r'^((?:\s|\\t)*)(.*)$', expr);
                 lmargin = re.sub(r'\\t', r'\t', m.group(1));
                 expr    = m.group(2);
-                re_meta = r'(\<{{3}}(?![\<|\`])(?:(?!(?:\<{{3}}|\>{{3}})).)*\>{{3}})';
+                re_meta = r'(\<{3}(?![\<|\`])(?:(?!(?:\<{3}|\>{3})).)*\>{3})';
 
                 has_subs = True;
                 while has_subs:
                     meta = "''";
                     has_subs = False;
                     for i,u in enumerate(re.split(re_meta, expr)):
-                        m = re.match(r'^\<{{3}}((?![\<|\`])(?:(?!(?:\<{{3}}|\>{{3}})).)*)\>{{3}}$', u);
+                        m = re.match(r'^\<{3}((?![\<|\`])(?:(?!(?:\<{3}|\>{3})).)*)\>{3}$', u);
                         if m:
                             # has_subs = True;
                             # has_subs = False; # <— erlaube nur eine Auflösungsstufe.
@@ -371,6 +432,10 @@ class phpytexTranspiler(object):
                             u = re.sub(r'^[\s\?\=]+|[\s\;]+$', '', u);
                             if u == '':
                                 continue;
+                            if u in globals():
+                                u = "'" + str(globals()[u]) + "'";
+                            else:
+                                u = 'str('+u+')';
                             u = 'str('+u+')';
                             meta += '+'+u;
                         else:
@@ -386,7 +451,7 @@ class phpytexTranspiler(object):
                 if update_indentation:
                     ____indentation____ = lmargin;
                 else:
-                    expr = "'{{}}' + ".format(lmargin) + expr;
+                    expr = "'{}' + ".format(lmargin) + expr;
 
                 return expr;
 
@@ -438,7 +503,7 @@ class phpytexTranspiler(object):
                 global ____insertbib____;
 
                 nom, _ = os.path.splitext(fname);
-                line = indent + r'\bibliography{{'+nom+'}}';
+                line = indent + r'\bibliography{'+nom+'}';
                 print(line, file=____filetex____);
                 ## lies Datei ein und füge Inhalte hinzu.
                 ____lines____['post-compile'].append(line);
@@ -460,7 +525,7 @@ class phpytexTranspiler(object):
                 pipe.wait();
                 if pipe.returncode == 0:
                     return;
-                raise Exception('Shell command < \033[94;1m{{}}\033[0m > failed.'.format(cmd));
+                raise Exception('Shell command < \033[94;1m{}\033[0m > failed.'.format(cmd));
 
             ## PDFLATEX:
             def ____compilelatex():
@@ -474,7 +539,7 @@ class phpytexTranspiler(object):
                 for src in ____lines____['bib']:
                     src, _ = os.path.splitext(src);
                     pipeCall('bibtex', src);
-                print('\n\nDOKUMENT \033[1m{{fname}}.pdf\033[0m WURDE FERTIGGESTELLT.'.format(fname=____filetex_name_rel____));
+                print('\n\nDOKUMENT \033[1m{fname}.pdf\033[0m WURDE FERTIGGESTELLT.'.format(fname=____filetex_name_rel____));
                 pass;
 
             ## ERSETZUNG VON \bibliography-Befehlen durch Inhalte + Anonymisierung:
@@ -483,7 +548,7 @@ class phpytexTranspiler(object):
 
                 with open(____filetex_name____, 'w+') as ____filetex____:
                     bibindex = [];
-                    bibtext = {{}};
+                    bibtext = {};
                     for src in ____lines____['bib']:
                         bibindex += ____lines____['bib'][src];
                         n = len(____lines____['bib'][src]);
@@ -501,7 +566,7 @@ class phpytexTranspiler(object):
                                 pass;
                         except:
                             biblines = None;
-                            print('ACHTUNG! Bib-Datei \033[1m{{fname}}\033[0m konnte nicht gefunden werden'.format(fname=src));
+                            print('ACHTUNG! Bib-Datei \033[1m{fname}\033[0m konnte nicht gefunden werden'.format(fname=src));
                         bibtext[src] = biblines;
                         pass;
 
@@ -531,8 +596,6 @@ class phpytexTranspiler(object):
                 pass;
 
             def ____compilephpytex():
-                global ____filetex____;
-                global ____lines____;
                 global ____reseed;
                 global ____print;
                 global ____qp;
@@ -544,16 +607,42 @@ class phpytexTranspiler(object):
                 global __LINENR__;
 
                 ____ignore('init');
-            '''.format(
-                indentchar   = self.INDENTCHARACTER_re,
-                fname        = fname,
-                fname_rel    = fname_rel,
-                maxlength    = self.MAXLENGTH,
-                insertbib    = self.INSERTBIB,
-                compilelatex = cmpl,
-                rootdir      = ROOTDIR,
-                seed         = self.SEED,
-            ),
+            ''',
+            indent='''
+            '''
+        ) \
+        + string_long(
+            r'''
+
+                ################################
+                # USER IMPORTS
+
+            ''',
+            indent='''
+            '''
+        ) + \
+        (imports if len(imports) > 0 else ['# no imports']) + \
+        string_long(
+            r'''
+
+                # END OF USER IMPORTS
+                ################################
+
+                ################################
+                # USER 'GLOBAL'VARIABLES
+
+            ''',
+            indent='''
+            '''
+        ) + \
+        (globalvars if len(globalvars) > 0 else ['    # no global vars']) + \
+        string_long(
+            r'''
+
+                # END OF USER 'GLOBAL'VARIABLES
+                ################################
+
+            ''',
             indent='''
             '''
         );
@@ -604,11 +693,18 @@ class phpytexTranspiler(object):
         );
         return lines;
 
-    def execmetacode(self, lines=[], fname='', debug=False, cmpl=False):
-        lines = self.createmetacode(lines=lines, fname=fname, cmpl=cmpl);
+    def execmetacode(
+        self,
+        lines:      List[str] = [],
+        imports:    List[str] = [],
+        globalvars: List[str] = [],
+        fname:      str       = '',
+        debug:      bool      = False,
+        cmpl:       bool      = False
+    ):
         fname_rel, _, _ = extractfilename(path=fname, relative=True, ext='');
-        with open(fname, 'w+') as ____filetex____:
-            ____filetex____.write('\n'.join(lines));
+        lines = self.createmetacode(lines=lines, imports=imports, globalvars=globalvars, fname=fname, cmpl=cmpl);
+        write_file(fname, lines);
 
         if debug:
             display_message('''Siehe Outputdatei: \033[1m{fname}.tex\033[0m'''.format(fname=fname_rel));
@@ -690,6 +786,25 @@ class phpytexTranspiler(object):
 
         return;
 
+    def export_parameters(self, fname: str):
+        lines = [];
+        for key in self.EXPORTVARS:
+            if not key in self.GLOBALVARS:
+                continue;
+            value = self.GLOBALVARS[key];
+            if isinstance(value, str):
+                value = "r'" + value + "'";
+            else:
+                # value = json.dumps(value);
+                value = str(value);
+            lines.append('{name} = {val};'.format(name=key, val=value));
+        if len(lines) > 0:
+            lines = ['#!/usr/bin/env python3', '# -*- coding: utf-8 -*-', ''] + lines;
+        else:
+            lines = ['#!/usr/bin/env python3', '# -*- coding: utf-8 -*-'];
+        write_file(fname, lines, force_create_path=True);
+        return;
+
     def addpreamble(self, silent=False, lines=[], params={}):
         preamble = [];
         verbatim = [];
@@ -699,7 +814,17 @@ class phpytexTranspiler(object):
         if not self.STAMPDATEI is None:
             struct = self.STRUCTURE[:]
             self.STRUCTURE = [];
-            erfolg = self.knit(filecontents=preamble, verbatim=verbatim, mute=True, filename={'src':self.STAMPDATEI, 'main':None}, params=params, dateityp='head');
+            erfolg = self.knit(
+                filecontents = preamble,
+                verbatim     = verbatim,
+                mute         = True,
+                filename     = dict(
+                    src      =  self.STAMPDATEI,
+                    main     =  'main',
+                ),
+                params       = params,
+                dateityp     = 'head'
+            );
             self.STRUCTURE = struct[:];
 
         if not erfolg:
@@ -724,23 +849,21 @@ class phpytexTranspiler(object):
 
     def knit(
         self,
-        filecontents                         = [],
-        verbatim: List[Tuple[int, Any, str]] = [],
-        filename                             = Dict[str, str],
-        anon                                 = False,
-        mute                                 = False,
-        silent                               = False,
-        indent                               = None,
-        params                               = {},
-        dateityp                             = None,
-        chain                                = []
+        filecontents: List[str]                  = [],
+        imports:      List[str]                  = [],
+        globalvars:   List[str]                  = [],
+        verbatim:     List[Tuple[int, Any, str]] = [],
+        filename:     Dict[str, str]             = dict(),
+        anon:         bool                       = False,
+        mute:         bool                       = False,
+        silent:       bool                       = False,
+        indent:       Dict[str, int]             = dict(tex=0, struct=0),
+        params:       Dict[str, Any]             = {},
+        dateityp:     str                        = 'tex',
+        chain:        List[str]                  = []
     ):
         if self.ERROR:
             return False;
-        if dateityp is None:
-            dateityp = 'tex';
-        if indent is None:
-            indent = dict(tex=0, struct=0);
 
         ## Bestimme Dateiquelle und neuen Root:
         root         = ROOTDIR;
@@ -839,6 +962,8 @@ class phpytexTranspiler(object):
         code_flags = [];
         code_options: Dict[str, Any] = dict();
         code_option_print: bool = False;
+        code_option_import: bool = False;
+        code_option_global: bool = False;
         pre_characters: str = '';
 
         for linenr, line in enumerate(lines + ['']):
@@ -875,8 +1000,16 @@ class phpytexTranspiler(object):
                 nom = m.group(1);
                 val = m.group(2);
                 val = re.sub(r'^[\s]+|[\s\;]+$', '', val);
-                lines_ = self.postcompile(key=nom, val=val, indent=self.INDENTATION.last, symbolic=True, set_precompile=True);
-                self.addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=lines_, verbexpr=[
+                # port directly to globalvars Array:
+                self.postcompile(key=nom, val=val, indent=0, symbolic=True, set_precompile=True);
+                self.EXPORTVARS.append(nom);
+                globalvars.append('{indent}from {importpath} import {name};'.format(
+                    indent     = self.INDENTCHARACTER*1,
+                    importpath = self.PARAM_PY_IMPORT,
+                    name       = nom,
+                ));
+                # do not write locally:
+                self.addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[], verbexpr=[
                     '<<< set {}; >>>'.format(e.lstrip()) for e in line
                 ], mode='direkt');
                 continue;
@@ -925,19 +1058,6 @@ class phpytexTranspiler(object):
                 ], verbexpr=['<<< unignore; >>>'], mode='direkt');
                 continue;
 
-            #  --- unter Arbeit (Problem mit der Indentation-Logik) --- #
-            # # Zeile: Quick-Python Python-Controlstatement (<<< ... : >>>)
-            # # Indentation wie beim letzten Zustand von python-Code.
-            # m = re.match(r'^\s*(?:\<{3}|\`{3})\s*((?![\<\`]).*\:)\s*(?:\>{3}|\`{3}).*$', line);
-            # if not bool_insidecode and m:
-            #   self.addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[
-            #       '''{indent_py}{text}'''.format(
-            #           indent_py = self.INDENTCHARACTER*self.INDENTATION.last,
-            #           text      = m.group(1),
-            #       )
-            #   ], mode='direkt');
-            #   continue;
-
             # Zeile: Start eines Codeblocks
             m        = re.match(r'^(\s*)(.*)(?:\<{3}|\`{3})\s*((?![\<\`]).*\S|)\s*$', line);
             m_bad    = re.match(r'^\s*(?:\<{4}|\`{4})', line);
@@ -948,10 +1068,19 @@ class phpytexTranspiler(object):
                 inline_indentation = m.group(1);
                 pre_characters     = m.group(1) + m.group(2);
                 code_language, code_flags, code_options = get_code_language_and_options(m.group(3));
-                code_option_print = ('print' in code_options and code_options['print'] is True);
-                bool_insidecode = True;
-                ## Set indentation level. If within print=true set, use previous indentation level:
-                if code_option_print:
+                bool_insidecode    = True;
+                code_option_import = ('import' in code_flags);
+                code_option_global = ('global' in code_flags);
+                code_option_print  = ('print' in code_options and code_options['print'] is True);
+                # If line is `<<< python, import`, then port subsequent lines to imports array:
+                if code_option_import:
+                    self.INDENTATION.initOffset(inline_indentation);
+                # If line is `<<< python, global`, then port subsequent lines to imports array:
+                if code_option_global:
+                    self.INDENTATION.initOffset(inline_indentation);
+                    raise Exception('The multiline method "works" but incurs a problematic usage of "global" variables across modules. Thus currently disabled.');
+                # If line is `<<< python, print=true`, then use previous indentation level:
+                elif code_option_print:
                     self.INDENTATION.reference = self.INDENTATION.computeIndentations(inline_indentation) - self.INDENTATION.last;
                     self.INDENTATION.start     = self.INDENTATION.last;
                     self.addpytexline(ignore=True, lines=filecontents, verbatim=verbatim, expr=[
@@ -1006,6 +1135,16 @@ class phpytexTranspiler(object):
                     m = re.match(r'^(\s*)(.*)$', line);
                     indent_last = self.INDENTATION.computeOffset(m.group(1));
                     line = self.INDENTCHARACTER*indent_last + m.group(2);
+
+                    # If within `<<< python, import` block, port lines to imports Array:
+                    if code_option_import:
+                        imports.append(line);
+                        continue;
+
+                    # If within `<<< python, global` block, port lines to globalvars Array:
+                    if code_option_global:
+                        globalvars.append(line);
+                        continue;
 
                     # Zeile: Python-Kommentar aber mit evtl. falschem Zeichen (LaTeX, Javascript, etc.).
                     m = re.match(r'^\s*(?:\#|\%|\/\/)(.*)$', line);
@@ -1100,23 +1239,25 @@ class phpytexTranspiler(object):
 
                 self.display_state_of_tree(r'''{branch}'''.format(branch = '    '*indent['struct'] + '    |'));
                 erfolg_ = self.knit(
-                    filecontents=filecontents,
-                    verbatim=verbatim,
-                    filename=dict(
-                        src=nom,
-                        main=filename['main'],
+                    filecontents = filecontents,
+                    imports      = imports,
+                    globalvars   = globalvars,
+                    verbatim     = verbatim,
+                    filename     = dict(
+                        src      = nom,
+                        main     = filename['main'],
                     ),
-                    anon=anon_,
-                    mute=mute,
-                    silent=silent,
-                    indent=dict(
-                        struct = indent['struct'] + 1,
-                        tex    = indent['tex']    + 1 if ext == 'tex' else 0,
-                        py     = 1,
+                    anon         = anon_,
+                    mute         = mute,
+                    silent       = silent,
+                    indent       = dict(
+                        struct   = indent['struct'] + 1,
+                        tex      = indent['tex']    + 1 if ext == 'tex' else 0,
+                        py       = 1,
                     ),
-                    params=params,
-                    dateityp=ext,
-                    chain=chain_[::]
+                    params       = params,
+                    dateityp     = ext,
+                    chain        = chain_[::]
                 );
                 erfolg = erfolg and erfolg_;
                 self.GLOBALVARS['__ROOT__'] = heretoorigin;
@@ -1422,6 +1563,23 @@ def read_file(fname: str) -> Tuple[bool, List[str]]:
     except:
         return False, [];
 
+def create_path(path: str):
+    if not os.path.exists(path):
+        Path(path).mkdir(parents=True, exist_ok=True);
+    if not os.path.exists(path):
+        raise FileExistsError('Could not create or find path \033[93;1m{}\033[0m!'.format(path));
+    return;
+
+def write_file(fname: str, lines: List[str], force_create_path: bool = False, force_create_empty_line: bool = True):
+    if force_create_path:
+        create_path(os.path.dirname(fname));
+    with open(fname, 'w+') as fp:
+        if force_create_empty_line and len(lines) == 0 or not re.match(r'^\s*$', lines[-1]):
+            fp.writelines('\n'.join(lines + ['']));
+        else:
+            fp.writelines('\n'.join(lines))
+    return;
+
 def extractfilename(path: str, root=None, split=False, relative=None, relative_to=None, ext=None) -> Tuple[str, str, str]:
     if not isinstance(root, str):
         root = ROOTDIR;
@@ -1549,6 +1707,10 @@ def metastring(s: str) -> str:
 
 def remove_quotes(s: str) -> str:
     return re.sub(r'^[\'\"]+|[\'\"]+$', '', s);
+
+## FORCE TYPE
+def force_bool(x: Any, default: bool = False) -> bool:
+    return x if isinstance(x, bool) else default;
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # EXECUTION
