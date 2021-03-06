@@ -6,7 +6,7 @@
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
 # ZULETZT VERÄNDERT: 06.03.2021                                             #
-# VERSION: 3·3·2                                                            #
+# VERSION: 3·3·3                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -1583,11 +1583,14 @@ def create_path(path: str):
 def write_file(fname: str, lines: List[str], force_create_path: bool = False, force_create_empty_line: bool = True):
     if force_create_path:
         create_path(os.path.dirname(fname));
+    while len(lines) > 0:
+        if not re.match(r'^\s*$', lines[-1]):
+            break;
+        lines = lines[:-1];
+    if force_create_empty_line:
+        lines = lines + [''];
     with open(fname, 'w+') as fp:
-        if force_create_empty_line and len(lines) == 0 or not re.match(r'^\s*$', lines[-1]):
-            fp.writelines('\n'.join(lines + ['']));
-        else:
-            fp.writelines('\n'.join(lines))
+        fp.writelines('\n'.join(lines));
     return;
 
 def extractfilename(path: str, root=None, split=False, relative=None, relative_to=None, ext=None) -> Tuple[str, str, str]:
