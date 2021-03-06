@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 05.03.2021                                             #
-# VERSION: 3·3·0                                                            #
+# ZULETZT VERÄNDERT: 06.03.2021                                             #
+# VERSION: 3·3·1                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -108,8 +108,8 @@ class phpytexIndentation(object):
 
 class phpytexTranspiler(object):
     ## GLOBALE VARIABLE
-    GLOBALVARS:         Dict[str, Any]   = {'__ROOT__':'.', '__DIR__':'.'};
-    EXPORTVARS:         List[str]        = [];
+    GLOBALVARS:         Dict[str, Any]   = dict(__ROOT__='.', __DIR__='.');
+    EXPORTVARS:         Dict[str, Any]   = dict();
     INCLUDES:           List[str]        = [];
     INSERTBIB:          bool             = False;
     ERROR:              bool             = False;
@@ -120,6 +120,7 @@ class phpytexTranspiler(object):
     EXPORTPARAMS:       bool             = False;
     PARAMDATEI:         str;
     PARAM_PY_IMPORT:    str;
+    PARAM_MODULE_NAME:  str              = 'MODULE_GLOBAL_PARAMS';
     LENPRECODE:         int              = 0;
     LENGTHOFOUTPUT:     int              = 0; ## <-- Anzahl der Zeilen.
     MAXLENGTH:          int              = 10000; ## verhindere, dass die Datei zu groß wird.
@@ -141,7 +142,6 @@ class phpytexTranspiler(object):
         global ROOTDIR;
 
         # must initialise arrays!
-        self.EXPORTVARS = [];
         self.INCLUDES = [];
         self.PRECOMPILELINES = [];
         self.STRUCTURE = [];
@@ -260,13 +260,11 @@ class phpytexTranspiler(object):
         self.PRECOMPILELINES = [];
         lines      = [];
         imports    = [];
-        globalvars = [];
         self.STRUCTURE = [];
         numpy.random.seed(self.SEED); ## nur ein Mal ausführen!
         erfolg = self.knit(
             filecontents = lines,
             imports      = imports,
-            globalvars   = globalvars,
             verbatim     = self.PRECOMPILELINES,
             mute         = False,
             silent       = silent,
@@ -283,9 +281,10 @@ class phpytexTranspiler(object):
             return;
 
         display_message('''\n...Dokumentteile erfolgreich kombiniert.\n''');
+        globalvars = [];
         if self.EXPORTPARAMS:
             fname_params, _, _ = extractfilename(path=self.PARAMDATEI, relative=True, ext='py');
-            self.export_parameters(fname=fname_params);
+            self.export_parameters(fname=fname_params, globalvars=globalvars);
         self.execmetacode(lines=lines, imports=imports, globalvars=globalvars, fname=hauptfile, debug=debug, cmpl=cmpl);
         display_message('''\n\033[92;1m(PH(p)y)TeX\033[0m fertig!\n''');
         return;
@@ -308,7 +307,7 @@ class phpytexTranspiler(object):
             import subprocess;
             import numpy;
             import numpy as np;
-            from typing import Any;
+            from typing import Any;{import_params}
 
             ____lines____            = {{'post-compile':[], 'anon':[], 'bib':{{}}}};
             ____len_empty_block____  = 0;
@@ -333,14 +332,15 @@ class phpytexTranspiler(object):
             ____error_eval____       = False;
 
             '''.format(
-                indentchar   = self.INDENTCHARACTER_re,
-                fname        = fname,
-                fname_rel    = fname_rel,
-                maxlength    = self.MAXLENGTH,
-                insertbib    = self.INSERTBIB,
-                compilelatex = cmpl,
-                rootdir      = ROOTDIR,
-                seed         = self.SEED,
+                import_params = '\nimport {} as {};\n'.format(self.PARAM_PY_IMPORT, self.PARAM_MODULE_NAME) if self.EXPORTPARAMS else '',
+                indentchar    = self.INDENTCHARACTER_re,
+                fname         = fname,
+                fname_rel     = fname_rel,
+                maxlength     = self.MAXLENGTH,
+                insertbib     = self.INSERTBIB,
+                compilelatex  = cmpl,
+                rootdir       = ROOTDIR,
+                seed          = self.SEED,
             ),
             indent='''
             '''
@@ -432,11 +432,7 @@ class phpytexTranspiler(object):
                             u = re.sub(r'^[\s\?\=]+|[\s\;]+$', '', u);
                             if u == '':
                                 continue;
-                            if u in globals():
-                                u = "'" + str(globals()[u]) + "'";
-                            else:
-                                u = 'str('+u+')';
-                            u = 'str('+u+')';
+                            u = 'str(' + u + ')';
                             meta += '+'+u;
                         else:
                             mm = re.split(r'(\'+)', u);
@@ -786,18 +782,26 @@ class phpytexTranspiler(object):
 
         return;
 
-    def export_parameters(self, fname: str):
+    def export_parameters(self, fname: str, globalvars: List[str]):
         lines = [];
         for key in self.EXPORTVARS:
-            if not key in self.GLOBALVARS:
-                continue;
-            value = self.GLOBALVARS[key];
+            value = self.EXPORTVARS[key];
             if isinstance(value, str):
                 value = "r'" + value + "'";
             else:
                 # value = json.dumps(value);
                 value = str(value);
             lines.append('{name} = {val};'.format(name=key, val=value));
+            # globalvars.append('{indent}from {importpath} import {name};'.format(
+            #     indent     = self.INDENTCHARACTER*1,
+            #     importpath = self.PARAM_PY_IMPORT,
+            #     name       = key,
+            # ));
+            globalvars.append('{indent}{name} = {mod}.{name};'.format(
+                indent = self.INDENTCHARACTER*1,
+                name   = key,
+                mod    = self.PARAM_MODULE_NAME,
+            ));
         if len(lines) > 0:
             lines = ['#!/usr/bin/env python3', '# -*- coding: utf-8 -*-', ''] + lines;
         else:
@@ -851,7 +855,6 @@ class phpytexTranspiler(object):
         self,
         filecontents: List[str]                  = [],
         imports:      List[str]                  = [],
-        globalvars:   List[str]                  = [],
         verbatim:     List[Tuple[int, Any, str]] = [],
         filename:     Dict[str, str]             = dict(),
         anon:         bool                       = False,
@@ -963,7 +966,6 @@ class phpytexTranspiler(object):
         code_options: Dict[str, Any] = dict();
         code_option_print: bool = False;
         code_option_import: bool = False;
-        code_option_global: bool = False;
         pre_characters: str = '';
 
         for linenr, line in enumerate(lines + ['']):
@@ -1000,16 +1002,10 @@ class phpytexTranspiler(object):
                 nom = m.group(1);
                 val = m.group(2);
                 val = re.sub(r'^[\s]+|[\s\;]+$', '', val);
-                # port directly to globalvars Array:
-                self.postcompile(key=nom, val=val, indent=0, symbolic=True, set_precompile=True);
-                self.EXPORTVARS.append(nom);
-                globalvars.append('{indent}from {importpath} import {name};'.format(
-                    indent     = self.INDENTCHARACTER*1,
-                    importpath = self.PARAM_PY_IMPORT,
-                    name       = nom,
-                ));
+                # port directly to EXPORTVARS+GLOBALVARS Array:
+                lines_ = self.postcompile(key=nom, val=val, indent=self.INDENTATION.last, symbolic=True, set_precompile=True, export=True);
                 # do not write locally:
-                self.addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[], verbexpr=[
+                self.addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=lines_, verbexpr=[
                     '<<< set {}; >>>'.format(e.lstrip()) for e in line
                 ], mode='direkt');
                 continue;
@@ -1070,15 +1066,10 @@ class phpytexTranspiler(object):
                 code_language, code_flags, code_options = get_code_language_and_options(m.group(3));
                 bool_insidecode    = True;
                 code_option_import = ('import' in code_flags);
-                code_option_global = ('global' in code_flags);
                 code_option_print  = ('print' in code_options and code_options['print'] is True);
                 # If line is `<<< python, import`, then port subsequent lines to imports array:
                 if code_option_import:
                     self.INDENTATION.initOffset(inline_indentation);
-                # If line is `<<< python, global`, then port subsequent lines to imports array:
-                if code_option_global:
-                    self.INDENTATION.initOffset(inline_indentation);
-                    raise Exception('The multiline method "works" but incurs a problematic usage of "global" variables across modules. Thus currently disabled.');
                 # If line is `<<< python, print=true`, then use previous indentation level:
                 elif code_option_print:
                     self.INDENTATION.reference = self.INDENTATION.computeIndentations(inline_indentation) - self.INDENTATION.last;
@@ -1139,11 +1130,6 @@ class phpytexTranspiler(object):
                     # If within `<<< python, import` block, port lines to imports Array:
                     if code_option_import:
                         imports.append(line);
-                        continue;
-
-                    # If within `<<< python, global` block, port lines to globalvars Array:
-                    if code_option_global:
-                        globalvars.append(line);
                         continue;
 
                     # Zeile: Python-Kommentar aber mit evtl. falschem Zeichen (LaTeX, Javascript, etc.).
@@ -1241,7 +1227,6 @@ class phpytexTranspiler(object):
                 erfolg_ = self.knit(
                     filecontents = filecontents,
                     imports      = imports,
-                    globalvars   = globalvars,
                     verbatim     = verbatim,
                     filename     = dict(
                         src      = nom,
@@ -1455,7 +1440,8 @@ class phpytexTranspiler(object):
         val:            Any,
         indent:         int  = 1,
         symbolic:       bool = True,
-        set_precompile: bool = False
+        set_precompile: bool = False,
+        export:         bool = False,
     )-> List[str]:
         if len(key) == 0:
             return [];
@@ -1470,6 +1456,10 @@ class phpytexTranspiler(object):
         if set_precompile and not is_bad:
             self.GLOBALVARS[key] = val;
 
+        # only save the first definition:
+        if export and self.EXPORTPARAMS and not (key in self.EXPORTVARS):
+            self.EXPORTVARS[key] = None if is_bad else val;
+
         if is_bad:
             val = "eval('" + str(val) + "')";
         elif isinstance(val, str):
@@ -1477,9 +1467,10 @@ class phpytexTranspiler(object):
         else:
             val = str(val);
 
-        line = self.INDENTCHARACTER*indent + key + ' = ' + val + ';';
-
-        return [line];
+        lines = [ '{indent}{key} = {value};'.format(indent = self.INDENTCHARACTER*indent, key = key, value = val), ];
+        if export and self.EXPORTPARAMS:
+            lines += [ '{indent}{mod}.{key} = {key}'.format(indent = self.INDENTCHARACTER*indent, mod=self.PARAM_MODULE_NAME, key=key) ];
+        return lines;
 
     def censorpath(self, path: str) -> str:
         # return '#'*len(path);
