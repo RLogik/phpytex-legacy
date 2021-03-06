@@ -5,8 +5,8 @@
 # FILE: (PH(p)y)create
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
-# LAST CHANGED: 05.03.2021
-# VERSION: 1·2·0
+# LAST CHANGED: 06.03.2021
+# VERSION: 1·2·1
 # NOTES:
 #
 #     Installation:
@@ -429,9 +429,9 @@ def create_parameters(options: dict, multiline: bool = False) -> List[str]:
         try:
             typ, value = to_python_string(options[key], indent=0, multiline=multiline);
             # if isinstance(typ, str):
-            #     lines += ['<<< set {key}: {type} = {value}; >>>'.format(type = typ, key = key, value = value)];
+            #     lines += ['<<< set global {key}: {type} = {value}; >>>'.format(type = typ, key = key, value = value)];
             # else:
-            lines += ['<<< set {key} = {value}; >>>'.format(key = key, value = value)];
+            lines += ['<<< set global {key} = {value}; >>>'.format(key = key, value = value)];
         except:
             continue;
     return lines;

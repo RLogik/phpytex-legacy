@@ -6,7 +6,7 @@
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
 # ZULETZT VERÄNDERT: 06.03.2021                                             #
-# VERSION: 3·3·1                                                            #
+# VERSION: 3·3·2                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -32,7 +32,6 @@ import os;
 import re;
 import subprocess;
 
-import json;
 from types import TracebackType;
 from typing import Dict;
 from typing import List;
@@ -990,8 +989,8 @@ class phpytexTranspiler(object):
                     ## <continue: i. e. remove line>
                     continue;
 
-            # Zeile: Quick-Python SET
-            m = re.match(r'^\s*\<{3}\s*set\s+(.*)\>{3}', line);
+            # Zeile: Quick-Python SET GLOBAL
+            m = re.match(r'^\s*\<{3}\s*set\s+global\s+(\S+\s*\=\s*.*)\>{3}', line);
             if not bool_insidecode and m:
                 if mute:
                     continue;
@@ -1004,6 +1003,26 @@ class phpytexTranspiler(object):
                 val = re.sub(r'^[\s]+|[\s\;]+$', '', val);
                 # port directly to EXPORTVARS+GLOBALVARS Array:
                 lines_ = self.postcompile(key=nom, val=val, indent=self.INDENTATION.last, symbolic=True, set_precompile=True, export=True);
+                # do not write locally:
+                self.addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=lines_, verbexpr=[
+                    '<<< set global {}; >>>'.format(e.lstrip()) for e in line
+                ], mode='direkt');
+                continue;
+
+            # Zeile: Quick-Python SET (= set local)
+            m = re.match(r'^\s*\<{3}\s*(?:set\s+local|set)\s+(\S+\s*\=\s*.*)\>{3}', line);
+            if not bool_insidecode and m:
+                if mute:
+                    continue;
+                line = m.group(1);
+                m = re.match(r'((?!\d)[\w|\_]+)\s*\=\s*(.*)', line);
+                if not m:
+                    continue;
+                nom = m.group(1);
+                val = m.group(2);
+                val = re.sub(r'^[\s]+|[\s\;]+$', '', val);
+                # port directly to EXPORTVARS+GLOBALVARS Array:
+                lines_ = self.postcompile(key=nom, val=val, indent=self.INDENTATION.last, symbolic=True, set_precompile=True, export=False);
                 # do not write locally:
                 self.addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=lines_, verbexpr=[
                     '<<< set {}; >>>'.format(e.lstrip()) for e in line
