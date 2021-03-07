@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 06.03.2021                                             #
-# VERSION: 3·3·3                                                            #
+# ZULETZT VERÄNDERT: 07.03.2021                                             #
+# VERSION: 3·3·4                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -1151,10 +1151,9 @@ class phpytexTranspiler(object):
                         imports.append(line);
                         continue;
 
-                    # Zeile: Python-Kommentar aber mit evtl. falschem Zeichen (LaTeX, Javascript, etc.).
-                    m = re.match(r'^\s*(?:\#|\%|\/\/)(.*)$', line);
+                    # Zeile: Python-Kommentar.
+                    m = re.match(r'^\s*\#(.*)$', line);
                     if m:
-                        line = self.INDENTCHARACTER*indent_last + '#'+m.group(1);
                         self.addpytexline(lines=filecontents, verbatim=verbatim, linenr=linenr, expr=[line], mode='direkt');
                         continue;
 
