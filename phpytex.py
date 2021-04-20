@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 07.03.2021                                             #
-# VERSION: 3·3·4                                                            #
+# ZULETZT VERÄNDERT: 20.04.2021                                             #
+# VERSION: 3·3·5                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -814,7 +814,7 @@ class phpytexTranspiler(object):
         params['no-comm'] = False;
         params['no-comm-auto'] = True;
         erfolg = True;
-        if not self.STAMPDATEI is None:
+        if hasattr(self, 'STAMPDATEI') and isinstance(self.STAMPDATEI, str):
             struct = self.STRUCTURE[:]
             self.STRUCTURE = [];
             erfolg = self.knit(
