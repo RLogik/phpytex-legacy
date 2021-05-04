@@ -5,8 +5,8 @@
 # FILE: (PH(p)y)create
 # AUTHOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex
 # CREATED: 27.07.2020
-# LAST CHANGED: 06.03.2021
-# VERSION: 1·2·1
+# LAST CHANGED: 04.05.2021
+# VERSION: 1·2·2
 # NOTES:
 #
 #     Installation:
@@ -652,6 +652,16 @@ def to_python_string(value, indent=0, multiline=False) -> Tuple[Union[str, None]
         elif isinstance(value, bool):
             typ = 'bool';
         return typ, str(value);
+    elif isinstance(value, tuple):
+        typ = 'tuple';
+        values = [to_python_string(_, indent+1, multiline)[1] for _ in value];
+        if multiline and len(values) > 1:
+            sep0 = "\n{}".format(INDENT*indent);
+            sep1 = "\n{}".format(INDENT*(indent+1));
+            return typ, '[' +  sep1 \
+                + (',' + sep1).join(values) + ',' \
+                + sep0 + ']';
+        return typ, '({})'.format(', '.join(values));
     elif isinstance(value, list):
         typ = 'list';
         values = [to_python_string(_, indent+1, multiline)[1] for _ in value];
@@ -661,7 +671,7 @@ def to_python_string(value, indent=0, multiline=False) -> Tuple[Union[str, None]
             return typ, '[' +  sep1 \
                 + (',' + sep1).join(values) + ',' \
                 + sep0 + ']';
-        return typ, '[' + ', '.join(values) + ']';
+        return typ, '[{}]'.format(', '.join(values));
     elif isinstance(value, dict):
         typ = 'dict';
         values = [(_, to_python_string(value[_], indent+1, multiline)[1]) for _ in value];
