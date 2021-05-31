@@ -195,7 +195,7 @@ class phpytexTranspiler(object):
                             -tabs / -tab          Benutze \t als Einheit für Einrückung (Default).
                             -spaces [0-9]+        Benutze n x Leerzeichen als Einheit für Einrückung.
 
-                            -seed [0-9]+          Seed für Pythons np.random.
+                            -seed [0-9]+          Seed für Python Zufallsgenerator.
 
                 ''',
                 indent='''
@@ -304,6 +304,7 @@ class phpytexTranspiler(object):
             import sys;
             import os;
             import re;
+            import random;
             import subprocess;
             from typing import Any;{import_params}
 
@@ -348,7 +349,7 @@ class phpytexTranspiler(object):
             ## reseed-funktion:
             def ____reseed():
                 global ____seed____;
-                np.random.seed(____seed____);
+                random.seed(____seed____);
                 return True;
 
             class ____skipclass:
