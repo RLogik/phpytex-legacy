@@ -5,8 +5,8 @@
 # ENTITÄT: (PH(p)y)TeX                                                      #
 # AUTOR: R-Logik, Deutschland. https://github.com/RLogik/phpytex            #
 # ERSTELLUNGSDATUM: 27.11.2018                                              #
-# ZULETZT VERÄNDERT: 20.04.2021                                             #
-# VERSION: 3·3·5                                                            #
+# ZULETZT VERÄNDERT: 31.05.2021                                             #
+# VERSION: 3·3·6                                                            #
 # HINWEISE:                                                                 #
 #                                                                           #
 #    Installation:                                                          #
@@ -39,7 +39,7 @@ from typing import Tuple;
 from typing import Union;
 from typing import Any;
 from pathlib import Path;
-import numpy;
+import random;
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # GLOBAL VARIABLES
@@ -124,8 +124,9 @@ class phpytexTranspiler(object):
     LENGTHOFOUTPUT:     int              = 0; ## <-- Anzahl der Zeilen.
     MAXLENGTH:          int              = 10000; ## verhindere, dass die Datei zu groß wird.
     TOOLONG:            bool             = False;
-    # SEED:               int            = numpy.random.get_state()[1][0];
-    SEED:               int              = numpy.random.choice(100000000);
+    # SEED:               int            = random.getstate()[1][0];
+    SEED:               int              = random.randint(0,100000000-1);
+
     PRECOMPILELINES:    List[Tuple[int, Any, str]] \
                                          = [];
     CENSORLENGTH:       int              = 8;
@@ -260,7 +261,7 @@ class phpytexTranspiler(object):
         lines      = [];
         imports    = [];
         self.STRUCTURE = [];
-        numpy.random.seed(self.SEED); ## nur ein Mal ausführen!
+        random.seed(self.SEED); ## nur ein Mal ausführen!
         erfolg = self.knit(
             filecontents = lines,
             imports      = imports,
@@ -304,8 +305,6 @@ class phpytexTranspiler(object):
             import os;
             import re;
             import subprocess;
-            import numpy;
-            import numpy as np;
             from typing import Any;{import_params}
 
             ____lines____            = {{'post-compile':[], 'anon':[], 'bib':{{}}}};
